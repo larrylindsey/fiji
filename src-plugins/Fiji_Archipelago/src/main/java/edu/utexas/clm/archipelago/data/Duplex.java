@@ -30,5 +30,10 @@ public class Duplex<A, B> implements Serializable
             return false;
         }
     }
+
+    public String toString()
+    {
+        return a.toString() + " " + b.toString();
+    }
     
 }
