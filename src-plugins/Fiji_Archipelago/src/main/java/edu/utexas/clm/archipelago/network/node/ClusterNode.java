@@ -19,6 +19,7 @@
 package edu.utexas.clm.archipelago.network.node;
 
 import edu.utexas.clm.archipelago.*;
+import edu.utexas.clm.archipelago.data.Duplex;
 import edu.utexas.clm.archipelago.data.HeartBeat;
 import edu.utexas.clm.archipelago.listen.*;
 import edu.utexas.clm.archipelago.compute.ProcessManager;
@@ -319,6 +320,9 @@ public class ClusterNode implements TransceiverListener
                     {
                         nodeParam = manager.getParam(id);
                         nodeID = id;
+                        xc.queueMessage(MessageType.SETFSTRANSLATION,
+                                new Duplex<String, String>(nodeParam.getFileRoot(),
+                                        FijiArchipelago.getFileRoot()));
                     }
                     else
                     {

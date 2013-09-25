@@ -41,5 +41,6 @@ public enum MessageType
     NUMTHREADS,
     MBRAM,
     BEAT,
-    HOSTNAME
+    HOSTNAME,
+    SETFSTRANSLATION
 }

@@ -79,6 +79,8 @@ public class ClusterMessage implements Serializable
                 return "num threads";
             case MBRAM:
                 return "MB ram";
+            case SETFSTRANSLATION:
+                return "set fs translation";
             default:
                 return "unknown";
         }

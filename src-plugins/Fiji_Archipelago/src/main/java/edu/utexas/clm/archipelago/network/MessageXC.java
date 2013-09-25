@@ -32,10 +32,60 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Message transciever class
+ * Message transceiver class
  */
 public class MessageXC
 {
+
+    private class FileTranslatingInputStream extends ObjectInputStream
+    {
+        public FileTranslatingInputStream(final InputStream is) throws IOException
+        {
+            super(is);
+            syncDoTranslation();
+        }
+
+        public void syncDoTranslation()
+        {
+            enableResolveObject(enableFileTranslation.get());
+        }
+
+        protected final Object resolveObject(final Object object)
+        {
+            if (object instanceof File)
+            {
+                final File file = (File)object;
+                return translateFile(file, remoteFileRoot, localFileRoot);
+            }
+            return object;
+        }
+    }
+
+    private class FileTranslatingOutputStream extends ObjectOutputStream
+    {
+
+        public FileTranslatingOutputStream(final OutputStream os) throws IOException
+        {
+            super(os);
+            syncDoTranslation();
+        }
+
+        public void syncDoTranslation()
+        {
+            enableReplaceObject(enableFileTranslation.get());
+        }
+
+
+        protected final Object replaceObject(final Object object)
+        {
+            if (object instanceof File)
+            {
+                final File file = (File)object;
+                return translateFile(file, localFileRoot, remoteFileRoot);
+            }
+            return object;
+        }
+    }
 
     private class RXThread extends Thread
     {
@@ -58,7 +108,7 @@ public class MessageXC
                         }
                     }
                     xcListener.handleMessage(message);
-                    objectInputStream = new ObjectInputStream(inStream);
+                    objectInputStream = new FileTranslatingInputStream(inStream);
                 }
                 catch (ClassCastException cce)
                 {
@@ -71,6 +121,10 @@ public class MessageXC
                 catch (ClassNotFoundException cnfe)
                 {
                     xcExceptionListener.handleRXThrowable(cnfe, xc);
+                }
+                catch (Exception e)
+                {
+                    xcExceptionListener.handleRXThrowable(e, xc);
                 }
             }
         }
@@ -103,7 +157,8 @@ public class MessageXC
                         }
                         objectOutputStream.writeObject(nextMessage);
                         objectOutputStream.flush();
-                        objectOutputStream = new ObjectOutputStream(outStream);
+                        objectOutputStream = new FileTranslatingOutputStream(outStream);
+
                     }
                     catch (NotSerializableException nse)
                     {
@@ -116,6 +171,10 @@ public class MessageXC
                     catch (ConcurrentModificationException ccme)
                     {
                         xcExceptionListener.handleTXThrowable(ccme, xc);
+                    }
+                    catch (RuntimeException re)
+                    {
+                        xcExceptionListener.handleTXThrowable(re, xc);
                     }
                     catch (Exception e)
                     {
@@ -130,10 +189,10 @@ public class MessageXC
     public static final TimeUnit DEFAULT_UNIT = TimeUnit.MILLISECONDS;
 
     private final ArrayBlockingQueue<ClusterMessage> messageQ;
-    private ObjectOutputStream objectOutputStream;
-    private ObjectInputStream objectInputStream;
+    private FileTranslatingOutputStream objectOutputStream;
+    private FileTranslatingInputStream objectInputStream;
     private final Thread txThread, rxThread;
-    private final AtomicBoolean active;
+    private final AtomicBoolean active, enableFileTranslation;
     private final long waitTime;
     private final TimeUnit tUnit;
     private final TransceiverListener xcListener;
@@ -141,7 +200,9 @@ public class MessageXC
     private final OutputStream outStream;
     private final InputStream inStream;
     private long id;
-    
+
+    private String localFileRoot, remoteFileRoot;
+
     private final MessageXC xc = this;
 
     public MessageXC(final InputStream inStream,
@@ -160,9 +221,10 @@ public class MessageXC
                      TimeUnit unit) throws IOException
     {
         FijiArchipelago.debug("Creating Message Transciever");
+        enableFileTranslation = new AtomicBoolean(true);
         messageQ = new ArrayBlockingQueue<ClusterMessage>(16, true);
-        objectOutputStream = new ObjectOutputStream(outStream);
-        objectInputStream =  new ObjectInputStream(inStream);
+        objectOutputStream = new FileTranslatingOutputStream(outStream);
+        objectInputStream =  new FileTranslatingInputStream(inStream);
         FijiArchipelago.debug("XC: streams are set");
         this.inStream = inStream;
         this.outStream = outStream;
@@ -171,6 +233,8 @@ public class MessageXC
         tUnit = unit;
         xcListener = listener;
         xcExceptionListener = listenerE;
+        localFileRoot = "";
+        remoteFileRoot = "";
 
         txThread = new TXThread();
         rxThread = new RXThread();
@@ -258,5 +322,50 @@ public class MessageXC
     public void setId(final long id)
     {
         this.id = id;
+    }
+
+    public File translateFile(final File file, final String fromPath, final String toPath)
+    {
+        final String filePath = file.getAbsolutePath();
+        if (filePath.startsWith(fromPath))
+        {
+            return new File(filePath.replace(fromPath, toPath));
+        }
+        else
+        {
+            return file;
+        }
+    }
+
+    public void setFileSystemTranslation(final String local, final String remote)
+    {
+        if (local.endsWith("/") || local.endsWith("\\"))
+        {
+            localFileRoot = local.substring(0, local.length() - 1);
+        }
+        else
+        {
+            localFileRoot = local;
+        }
+
+        if (remote.endsWith("/") || remote.endsWith("\\"))
+        {
+            remoteFileRoot = remote.substring(0, remote.length() - 1);
+        }
+        else
+        {
+            remoteFileRoot = remote;
+        }
+
+        enableFileTranslation.set(true);
+        objectOutputStream.syncDoTranslation();
+        objectInputStream.syncDoTranslation();
+    }
+
+    public void unsetFileSystemTranslation()
+    {
+        enableFileTranslation.set(false);
+        objectOutputStream.syncDoTranslation();
+        objectInputStream.syncDoTranslation();
     }
 }

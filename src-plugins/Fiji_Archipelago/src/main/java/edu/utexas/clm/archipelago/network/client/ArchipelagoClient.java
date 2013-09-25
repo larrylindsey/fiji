@@ -19,6 +19,7 @@
 package edu.utexas.clm.archipelago.network.client;
 
 import edu.utexas.clm.archipelago.FijiArchipelago;
+import edu.utexas.clm.archipelago.data.Duplex;
 import edu.utexas.clm.archipelago.data.HeartBeat;
 import edu.utexas.clm.archipelago.listen.MessageType;
 import edu.utexas.clm.archipelago.listen.TransceiverExceptionListener;
@@ -289,6 +290,11 @@ public class ArchipelagoClient implements TransceiverListener
                     {
                         beatThread.start();
                     }
+                    break;
+
+                case SETFSTRANSLATION:
+                    final Duplex<String, String> translation = (Duplex<String, String>)object;
+                    xc.setFileSystemTranslation(translation.a, translation.b);
                     break;
             }
         }
