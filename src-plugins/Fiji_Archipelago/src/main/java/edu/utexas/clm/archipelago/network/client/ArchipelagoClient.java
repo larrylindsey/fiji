@@ -245,17 +245,21 @@ public class ArchipelagoClient implements TransceiverListener
                     xc.queueMessage(MessageType.GETID, clientId);
                     break;
 
+/*
                 case SETFILEROOT:
                     FijiArchipelago.setFileRoot((String) object);
                     break;
+*/
 
                 case SETEXECROOT:
                     FijiArchipelago.setExecRoot((String) object);
                     break;
 
-                case GETFILEROOT:
-                    xc.queueMessage(MessageType.SETFILEROOT, FijiArchipelago.getFileRoot());
+
+                case GETFSTRANSLATION:
+                    xc.queueMessage(MessageType.GETFSTRANSLATION, FijiArchipelago.getFileRoot());
                     break;
+
 
                 case GETEXECROOT:
                     xc.queueMessage(MessageType.GETEXECROOT, FijiArchipelago.getExecRoot());

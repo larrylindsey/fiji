@@ -101,10 +101,10 @@ public class ClusterNode implements TransceiverListener
         {
             xc.queueMessage(MessageType.GETEXECROOT);
         }
-        else
+        /*else
         {
             xc.queueMessage(MessageType.SETFILEROOT, getFilePath());
-        }
+        }*/
         xc.queueMessage(MessageType.BEAT);
     }
     
@@ -130,7 +130,9 @@ public class ClusterNode implements TransceiverListener
         else
         {
             nodeParam.setFileRoot(path);
-            return xc.queueMessage(MessageType.SETFILEROOT, path);
+//            return xc.queueMessage(MessageType.SETFILEROOT, path);
+            return xc.queueMessage(MessageType.SETFSTRANSLATION,
+                    new Duplex<String, String>(path, FijiArchipelago.getFileRoot()));
         }
     }
 
@@ -389,8 +391,8 @@ public class ClusterNode implements TransceiverListener
                     }
                     break;
 
-                case GETFILEROOT:
-                    // Results of a GETFILEROOT request sent to the client.
+                case GETFSTRANSLATION:
+                    // Results of a GETFSTRANSLATION request sent to the client.
                     setFilePath((String)object);
                     break;
                 
