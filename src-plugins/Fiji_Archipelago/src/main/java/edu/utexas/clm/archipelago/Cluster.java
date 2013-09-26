@@ -32,6 +32,8 @@ import edu.utexas.clm.archipelago.network.node.NodeManager;
 import edu.utexas.clm.archipelago.network.shell.NodeShell;
 import edu.utexas.clm.archipelago.network.shell.SSHNodeShell;
 import edu.utexas.clm.archipelago.network.shell.SocketNodeShell;
+import edu.utexas.clm.archipelago.network.translation.Bottle;
+import edu.utexas.clm.archipelago.network.translation.Bottler;
 import edu.utexas.clm.archipelago.ui.ArchipelagoUI;
 import edu.utexas.clm.archipelago.util.ProcessManagerCoreComparator;
 import edu.utexas.clm.archipelago.util.XCErrorAdapter;
@@ -1064,6 +1066,7 @@ public class Cluster implements NodeStateListener, NodeShellListener
     private final Vector<ClusterNode> nodes;
     private final Vector<Thread> waitThreads;
     private final Vector<ArchipelagoUI> registeredUIs;
+    private final Vector<Bottler> bottlers;
     private final ProcessScheduler scheduler;
     
     private final Hashtable<Long, ArchipelagoFuture<?>> futures;
@@ -1092,6 +1095,7 @@ public class Cluster implements NodeStateListener, NodeShellListener
         nodes = new Vector<ClusterNode>();
         waitThreads = new Vector<Thread>();
         registeredUIs = new Vector<ArchipelagoUI>();
+        bottlers = new Vector<Bottler>();
         
         jobCount = new AtomicInteger(0);
         runningNodes = new AtomicInteger(0);
@@ -1254,7 +1258,7 @@ public class Cluster implements NodeStateListener, NodeShellListener
         return null;
     }
 
-    public void addNodeToStart(NodeManager.NodeParameters param)
+    public void addNodeToStart(final NodeManager.NodeParameters param)
     {
         if (param == null)
         {
@@ -1271,10 +1275,16 @@ public class Cluster implements NodeStateListener, NodeShellListener
         }
     }
     
-    private void addNode(ClusterNode node)
+    private void addNode(final ClusterNode node)
     {
         nodeLock.lock();
         waitNodes.remove(node.getParam());
+
+        for (final Bottler bottler : bottlers)
+        {
+            node.addBottler(bottler);
+        }
+
         nodes.add(node);
 /*
         if (waitNodes.contains(node.getParam()))
@@ -1293,7 +1303,7 @@ public class Cluster implements NodeStateListener, NodeShellListener
         node.addListener(this);
     }
 
-    public void removeNode(long id)
+    public void removeNode(final long id)
     {
         nodeLock.lock();
         NodeManager.NodeParameters param = nodeManager.getParam(id);
@@ -1316,7 +1326,7 @@ public class Cluster implements NodeStateListener, NodeShellListener
         nodeLock.unlock();
     }
     
-    public boolean hasNode(long id)
+    public boolean hasNode(final long id)
     {
         nodeLock.lock();
         if (getNode(id) != null)
@@ -1629,6 +1639,20 @@ public class Cluster implements NodeStateListener, NodeShellListener
         }
 
         return paramList;
+    }
+
+    public void addBottler(final Bottler bottler)
+    {
+        FijiArchipelago.log("Cluster: got bottler");
+        nodeLock.lock();
+        FijiArchipelago.log("Cluster: acquired a lock");
+        bottlers.add(bottler);
+        for (final ClusterNode node : nodes)
+        {
+            FijiArchipelago.log("Cluster: adding bottler to " + node.getHost());
+            node.addBottler(bottler);
+        }
+        nodeLock.unlock();
     }
 
     /**

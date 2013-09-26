@@ -42,5 +42,6 @@ public enum MessageType
     MBRAM,
     BEAT,
     HOSTNAME,
-    SETFSTRANSLATION
+    SETFSTRANSLATION,
+    BOTTLER
 }

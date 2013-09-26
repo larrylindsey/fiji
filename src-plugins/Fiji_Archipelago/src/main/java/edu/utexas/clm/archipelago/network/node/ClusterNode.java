@@ -25,6 +25,7 @@ import edu.utexas.clm.archipelago.listen.*;
 import edu.utexas.clm.archipelago.compute.ProcessManager;
 import edu.utexas.clm.archipelago.data.ClusterMessage;
 import edu.utexas.clm.archipelago.network.MessageXC;
+import edu.utexas.clm.archipelago.network.translation.Bottler;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -552,6 +553,12 @@ public class ClusterNode implements TransceiverListener
     {
         stateListeners.add(listener);
         listener.stateChanged(this, state, ClusterNodeState.INACTIVE);
+    }
+
+    public void addBottler(final Bottler bottler)
+    {
+        //TODO: Send bottler to client if desired
+        xc.addBottler(bottler);
     }
     
     public void removeListener(final NodeStateListener listener)

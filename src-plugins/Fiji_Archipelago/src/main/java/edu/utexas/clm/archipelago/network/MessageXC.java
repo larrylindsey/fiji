@@ -24,9 +24,12 @@ import edu.utexas.clm.archipelago.data.ClusterMessage;
 import edu.utexas.clm.archipelago.listen.MessageType;
 import edu.utexas.clm.archipelago.listen.TransceiverExceptionListener;
 import edu.utexas.clm.archipelago.listen.TransceiverListener;
+import edu.utexas.clm.archipelago.network.translation.Bottle;
+import edu.utexas.clm.archipelago.network.translation.Bottler;
 
 import java.io.*;
 import java.util.ConcurrentModificationException;
+import java.util.Vector;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -42,22 +45,35 @@ public class MessageXC
         public FileTranslatingInputStream(final InputStream is) throws IOException
         {
             super(is);
-            syncDoTranslation();
+            enableResolveObject(true);
         }
 
-        public void syncDoTranslation()
+        private Object unBottle(final Object object)
         {
-            enableResolveObject(enableFileTranslation.get());
+            if (object instanceof Bottle)
+            {
+                Bottle bottle = (Bottle)object;
+                return bottle.unBottle();
+            }
+            else
+            {
+                return object;
+            }
         }
 
         protected final Object resolveObject(final Object object)
         {
-            if (object instanceof File)
+            final Object resolved = unBottle(object);
+
+            if (resolved instanceof File)
             {
                 final File file = (File)object;
-                return translateFile(file, remoteFileRoot, localFileRoot);
+                return translateFile(file, false);
             }
-            return object;
+            else
+            {
+                return resolved;
+            }
         }
     }
 
@@ -67,23 +83,37 @@ public class MessageXC
         public FileTranslatingOutputStream(final OutputStream os) throws IOException
         {
             super(os);
-            syncDoTranslation();
+            enableReplaceObject(true);
         }
 
-        public void syncDoTranslation()
+        private Object bottle(final Object object)
         {
-            enableReplaceObject(enableFileTranslation.get());
+            for (final Bottler bottler : bottlers)
+            {
+
+                if (bottler.accepts(object))
+                {
+                    return bottler.bottle(object);
+                }
+            }
+            return object;
         }
 
 
         protected final Object replaceObject(final Object object)
         {
-            if (object instanceof File)
+            final Object replacement = bottle(object);
+
+            if (replacement instanceof File)
             {
                 final File file = (File)object;
-                return translateFile(file, localFileRoot, remoteFileRoot);
+                return translateFile(file, true);
             }
-            return object;
+            else
+            {
+                return replacement;
+            }
+
         }
     }
 
@@ -188,6 +218,7 @@ public class MessageXC
     public static final long DEFAULT_WAIT = 10000;
     public static final TimeUnit DEFAULT_UNIT = TimeUnit.MILLISECONDS;
 
+    private final Vector<Bottler> bottlers;
     private final ArrayBlockingQueue<ClusterMessage> messageQ;
     private FileTranslatingOutputStream objectOutputStream;
     private FileTranslatingInputStream objectInputStream;
@@ -222,6 +253,7 @@ public class MessageXC
     {
         FijiArchipelago.debug("Creating Message Transciever");
         enableFileTranslation = new AtomicBoolean(true);
+        bottlers = new Vector<Bottler>();
         messageQ = new ArrayBlockingQueue<ClusterMessage>(16, true);
         objectOutputStream = new FileTranslatingOutputStream(outStream);
         objectInputStream =  new FileTranslatingInputStream(inStream);
@@ -324,12 +356,26 @@ public class MessageXC
         this.id = id;
     }
 
-    public File translateFile(final File file, final String fromPath, final String toPath)
+    private File translateHelper(final File file, final String fromPath, final String toPath)
     {
         final String filePath = file.getAbsolutePath();
         if (filePath.startsWith(fromPath))
         {
             return new File(filePath.replace(fromPath, toPath));
+        }
+        else
+        {
+            return file;
+        }
+    }
+
+    public File translateFile(final File file,
+                              boolean directionLocalRemote)
+    {
+        if (enableFileTranslation.get())
+        {
+            return directionLocalRemote ? translateHelper(file, localFileRoot, remoteFileRoot) :
+                    translateHelper(file, remoteFileRoot, localFileRoot);
         }
         else
         {
@@ -358,14 +404,20 @@ public class MessageXC
         }
 
         enableFileTranslation.set(true);
-        objectOutputStream.syncDoTranslation();
-        objectInputStream.syncDoTranslation();
     }
 
     public void unsetFileSystemTranslation()
     {
         enableFileTranslation.set(false);
-        objectOutputStream.syncDoTranslation();
-        objectInputStream.syncDoTranslation();
+    }
+
+    public void addBottler(final Bottler bottler)
+    {
+        bottlers.add(bottler);
+    }
+
+    public Vector<Bottler> getBottlers()
+    {
+        return bottlers;
     }
 }
