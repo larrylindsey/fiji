@@ -20,6 +20,7 @@ package edu.utexas.clm.archipelago.ijsupport;
 
 import edu.utexas.clm.archipelago.Cluster;
 import edu.utexas.clm.archipelago.FijiArchipelago;
+import edu.utexas.clm.archipelago.ijsupport.bottle.LayerBottler;
 import edu.utexas.clm.archipelago.listen.ClusterStateListener;
 import ini.trakem2.plugin.TPlugIn;
 import ini.trakem2.parallel.ExecutorProvider;
@@ -101,6 +102,7 @@ public class TrakEM2Archipelago implements TPlugIn
             cluster = Cluster.getCluster();
         }
 
+        cluster.addBottler(new LayerBottler());
         cluster.addStateListener(new ProviderListener());
         ExecutorProvider.setProvider(new ClusterProvider(cluster));
 
