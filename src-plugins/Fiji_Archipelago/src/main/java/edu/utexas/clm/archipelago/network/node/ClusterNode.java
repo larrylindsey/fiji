@@ -557,8 +557,11 @@ public class ClusterNode implements TransceiverListener
 
     public void addBottler(final Bottler bottler)
     {
-        //TODO: Send bottler to client if desired
         xc.addBottler(bottler);
+        if (bottler.transfer())
+        {
+            xc.queueMessage(MessageType.BOTTLER, bottler);
+        }
     }
     
     public void removeListener(final NodeStateListener listener)

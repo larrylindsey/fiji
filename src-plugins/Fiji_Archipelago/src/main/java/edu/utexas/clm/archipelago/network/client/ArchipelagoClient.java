@@ -27,6 +27,7 @@ import edu.utexas.clm.archipelago.listen.TransceiverListener;
 import edu.utexas.clm.archipelago.compute.ProcessManager;
 import edu.utexas.clm.archipelago.data.ClusterMessage;
 import edu.utexas.clm.archipelago.network.MessageXC;
+import edu.utexas.clm.archipelago.network.translation.Bottler;
 import edu.utexas.clm.archipelago.util.XCErrorAdapter;
 
 import java.io.*;
@@ -250,6 +251,9 @@ public class ArchipelagoClient implements TransceiverListener
                     FijiArchipelago.setFileRoot((String) object);
                     break;
 */
+                case BOTTLER:
+                    xc.addBottler((Bottler)object);
+                    break;
 
                 case SETEXECROOT:
                     FijiArchipelago.setExecRoot((String) object);
