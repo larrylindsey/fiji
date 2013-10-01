@@ -23,6 +23,7 @@ import edu.utexas.clm.archipelago.FijiArchipelago;
 import edu.utexas.clm.archipelago.ijsupport.bottle.LayerBottler;
 import edu.utexas.clm.archipelago.ijsupport.bottle.PatchBottler;
 import edu.utexas.clm.archipelago.listen.ClusterStateListener;
+import ini.trakem2.ControlWindow;
 import ini.trakem2.Project;
 import ini.trakem2.persistence.FSLoader;
 import ini.trakem2.plugin.TPlugIn;
@@ -136,13 +137,13 @@ public class TrakEM2Archipelago implements TPlugIn
     {
         for (final Project p : Project.getProjects())
         {
-            FSLoader loader = (FSLoader)p.getLoader();
+            //FSLoader loader = (FSLoader)p.getLoader();
             if (projectFile.equals(getFile(p)))
             {
                 return p;
             }
         }
-
+        ControlWindow.setGUIEnabled(false);
         return Project.openFSProject(projectFile.getAbsolutePath(), false);
     }
 }
