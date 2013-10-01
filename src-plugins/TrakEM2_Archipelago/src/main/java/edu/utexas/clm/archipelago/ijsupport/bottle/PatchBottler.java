@@ -2,21 +2,21 @@ package edu.utexas.clm.archipelago.ijsupport.bottle;
 
 import edu.utexas.clm.archipelago.network.translation.Bottle;
 import edu.utexas.clm.archipelago.network.translation.Bottler;
-import ini.trakem2.display.Layer;
+import ini.trakem2.display.Patch;
 
 /**
  *
  */
-public class LayerBottler implements Bottler<Layer>
+public class PatchBottler implements Bottler<Patch>
 {
     public boolean accepts(Object o)
     {
-        return o instanceof Layer;
+        return o instanceof Patch;
     }
 
-    public Bottle<Layer> bottle(Object o)
+    public Bottle<Patch> bottle(Object o)
     {
-        return new LayerBottle((Layer)o);
+        return new PatchBottle((Patch)o);
     }
 
     public boolean transfer()

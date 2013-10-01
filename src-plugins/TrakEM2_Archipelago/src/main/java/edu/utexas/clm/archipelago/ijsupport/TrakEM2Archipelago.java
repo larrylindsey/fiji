@@ -21,18 +21,22 @@ package edu.utexas.clm.archipelago.ijsupport;
 import edu.utexas.clm.archipelago.Cluster;
 import edu.utexas.clm.archipelago.FijiArchipelago;
 import edu.utexas.clm.archipelago.ijsupport.bottle.LayerBottler;
+import edu.utexas.clm.archipelago.ijsupport.bottle.PatchBottler;
 import edu.utexas.clm.archipelago.listen.ClusterStateListener;
+import ini.trakem2.Project;
+import ini.trakem2.persistence.FSLoader;
 import ini.trakem2.plugin.TPlugIn;
 import ini.trakem2.parallel.ExecutorProvider;
 import ini.trakem2.parallel.DefaultExecutorProvider;
 
+import java.io.File;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 
 public class TrakEM2Archipelago implements TPlugIn
 {
-    private class ProviderListener implements ClusterStateListener        
+    private class ProviderListener implements ClusterStateListener
     {
         private final AtomicBoolean doneSwitched;
         
@@ -103,6 +107,7 @@ public class TrakEM2Archipelago implements TPlugIn
         }
 
         cluster.addBottler(new LayerBottler());
+        cluster.addBottler(new PatchBottler());
         cluster.addStateListener(new ProviderListener());
         ExecutorProvider.setProvider(new ClusterProvider(cluster));
 
@@ -119,5 +124,25 @@ public class TrakEM2Archipelago implements TPlugIn
     public boolean applies(Object ob)
     {
         return false;
+    }
+
+    public static File getFile(final Project p)
+    {
+        FSLoader loader = (FSLoader)p.getLoader();
+        return new File(loader.getProjectXMLPath());
+    }
+
+    public static Project getProject(final File projectFile)
+    {
+        for (final Project p : Project.getProjects())
+        {
+            FSLoader loader = (FSLoader)p.getLoader();
+            if (projectFile.equals(getFile(p)))
+            {
+                return p;
+            }
+        }
+
+        return Project.openFSProject(projectFile.getAbsolutePath(), false);
     }
 }
