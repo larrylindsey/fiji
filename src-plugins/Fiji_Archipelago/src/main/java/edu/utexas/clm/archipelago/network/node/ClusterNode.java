@@ -351,6 +351,18 @@ public class ClusterNode implements TransceiverListener
 
                     break;
 
+                case BEAT:
+                    HeartBeat beat = (HeartBeat)object;
+                    lastBeatTime = System.currentTimeMillis();
+                    ramMBAvail.set(beat.ramMBAvailable);
+                    ramMBTot.set(beat.ramMBTotal);
+                    ramMBMax.set(beat.ramMBMax);
+                    break;
+
+                case LOG:
+                    FijiArchipelago.log(object.toString());
+                    break;
+
                 case PROCESS:
                     ProcessManager<?> pm = (ProcessManager<?>)object;
                     ProcessListener listener = processHandlers.remove(pm.getID());
@@ -406,15 +418,7 @@ public class ClusterNode implements TransceiverListener
                     Exception e = (Exception)object;
                     xcEListener.handleRXThrowable(e, xc);
                     break;
-                
-                case BEAT:
-                    HeartBeat beat = (HeartBeat)object;
-                    lastBeatTime = System.currentTimeMillis();
-                    ramMBAvail.set(beat.ramMBAvailable);
-                    ramMBTot.set(beat.ramMBTotal);
-                    ramMBMax.set(beat.ramMBMax);
-                    break;
-                
+
                 default:
                     FijiArchipelago.log("Got unexpected message type. The local version " +
                             "of Archipelago may not be up to date with the clients.");

@@ -43,5 +43,6 @@ public enum MessageType
     BEAT,
     HOSTNAME,
     SETFSTRANSLATION,
-    BOTTLER
+    BOTTLER,
+    LOG
 }

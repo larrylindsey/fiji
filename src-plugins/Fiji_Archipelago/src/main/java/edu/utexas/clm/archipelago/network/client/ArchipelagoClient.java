@@ -33,6 +33,7 @@ import edu.utexas.clm.archipelago.util.XCErrorAdapter;
 import java.io.*;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.Vector;
 import java.util.concurrent.atomic.AtomicBoolean;
 /**
@@ -41,8 +42,25 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class ArchipelagoClient implements TransceiverListener
 {
-    
-    
+    private static ArrayList<ArchipelagoClient> clients = new ArrayList<ArchipelagoClient>();
+
+
+    public static ArrayList<ArchipelagoClient> getClients()
+    {
+        return new ArrayList<ArchipelagoClient>(clients);
+    }
+
+    public static ArchipelagoClient getFirstClient()
+    {
+        if (clients.isEmpty())
+        {
+            return null;
+        }
+        else
+        {
+            return clients.get(0);
+        }
+    }
     
     private class HeartBeatThread extends Thread
     {
@@ -204,6 +222,8 @@ public class ArchipelagoClient implements TransceiverListener
             }
         }
 
+        clients.add(this);
+
         FijiArchipelago.log("Archipelago Client is Active");
     }
     
@@ -310,6 +330,11 @@ public class ArchipelagoClient implements TransceiverListener
         {
             xcEListener.handleRXThrowable(cce, xc);
         }
+    }
+
+    public void log(String string)
+    {
+        xc.queueMessage(MessageType.LOG, string);
     }
 
     public boolean join()
