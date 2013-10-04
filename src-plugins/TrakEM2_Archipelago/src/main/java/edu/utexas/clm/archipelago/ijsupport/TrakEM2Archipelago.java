@@ -23,20 +23,44 @@ import edu.utexas.clm.archipelago.FijiArchipelago;
 import edu.utexas.clm.archipelago.ijsupport.bottle.LayerBottler;
 import edu.utexas.clm.archipelago.ijsupport.bottle.PatchBottler;
 import edu.utexas.clm.archipelago.listen.ClusterStateListener;
+import edu.utexas.clm.archipelago.network.client.ArchipelagoClient;
 import ini.trakem2.ControlWindow;
 import ini.trakem2.Project;
 import ini.trakem2.persistence.FSLoader;
 import ini.trakem2.plugin.TPlugIn;
 import ini.trakem2.parallel.ExecutorProvider;
 import ini.trakem2.parallel.DefaultExecutorProvider;
+import ini.trakem2.utils.Utils;
 
 import java.io.File;
+import java.io.OutputStream;
+import java.io.PrintStream;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 
 public class TrakEM2Archipelago implements TPlugIn
 {
+    private static class LogStream extends PrintStream
+    {
+        private final ArchipelagoClient client;
+
+        public LogStream(OutputStream stream, ArchipelagoClient client)
+        {
+            super(stream);
+            this.client = client;
+        }
+
+        public void println(String str)
+        {
+            super.println(str);
+            if (client != null)
+            {
+                client.log(str);
+            }
+        }
+    }
+
     private class ProviderListener implements ClusterStateListener
     {
         private final AtomicBoolean doneSwitched;
@@ -144,6 +168,12 @@ public class TrakEM2Archipelago implements TPlugIn
             }
         }
         ControlWindow.setGUIEnabled(false);
+
+        if (!(Utils.getLogStream() instanceof LogStream ))
+        {
+            Utils.setLogStream(new LogStream(System.out, ArchipelagoClient.getFirstClient()));
+        }
+
         return Project.openFSProject(projectFile.getAbsolutePath(), false);
     }
 }
