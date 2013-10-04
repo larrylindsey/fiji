@@ -133,7 +133,7 @@ public class TrakEM2Archipelago implements TPlugIn
         return new File(loader.getProjectXMLPath());
     }
 
-    public static Project getProject(final File projectFile)
+    public static synchronized Project getProject(final File projectFile)
     {
         for (final Project p : Project.getProjects())
         {
