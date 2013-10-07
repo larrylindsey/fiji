@@ -1066,7 +1066,7 @@ public class Cluster implements NodeStateListener, NodeShellListener
     private final Vector<ClusterNode> nodes;
     private final Vector<Thread> waitThreads;
     private final Vector<ArchipelagoUI> registeredUIs;
-    private final Vector<Bottler> bottlers;
+    private final List<Bottler> bottlers;
     private final ProcessScheduler scheduler;
     
     private final Hashtable<Long, ArchipelagoFuture<?>> futures;
@@ -1095,7 +1095,7 @@ public class Cluster implements NodeStateListener, NodeShellListener
         nodes = new Vector<ClusterNode>();
         waitThreads = new Vector<Thread>();
         registeredUIs = new Vector<ArchipelagoUI>();
-        bottlers = new Vector<Bottler>();
+        bottlers = Collections.synchronizedList(new Vector<Bottler>());
         
         jobCount = new AtomicInteger(0);
         runningNodes = new AtomicInteger(0);

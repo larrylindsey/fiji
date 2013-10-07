@@ -96,7 +96,10 @@ public class XCErrorAdapter implements TransceiverExceptionListener
 
     public void handleRXThrowable(final Throwable t, final MessageXC mxc) {
 
-        t.printStackTrace();
+        for (StackTraceElement ste : t.getStackTrace())
+        {
+            System.out.println(ste);
+        }
         if (handleCustom(t, mxc) && handleCustomRX(t, mxc))
         {
             reportRX(t, t.toString(), mxc);
@@ -104,7 +107,10 @@ public class XCErrorAdapter implements TransceiverExceptionListener
     }
 
     public void handleTXThrowable(final Throwable t, final MessageXC mxc) {
-        t.printStackTrace();
+        for (StackTraceElement ste : t.getStackTrace())
+        {
+            System.out.println(ste);
+        }
         if (handleCustom(t, mxc) && handleCustomTX(t, mxc))
         {
             reportTX(t, t.toString(), mxc);

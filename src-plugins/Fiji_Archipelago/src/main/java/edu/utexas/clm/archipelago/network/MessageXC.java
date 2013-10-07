@@ -28,6 +28,7 @@ import edu.utexas.clm.archipelago.network.translation.Bottle;
 import edu.utexas.clm.archipelago.network.translation.Bottler;
 
 import java.io.*;
+import java.util.ArrayList;
 import java.util.ConcurrentModificationException;
 import java.util.Vector;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -88,7 +89,8 @@ public class MessageXC
 
         private Object bottle(final Object object)
         {
-            for (final Bottler bottler : bottlers)
+            ArrayList<Bottler> localBottlers = new ArrayList<Bottler>(bottlers);
+            for (final Bottler bottler : localBottlers)
             {
 
                 if (bottler.accepts(object))
