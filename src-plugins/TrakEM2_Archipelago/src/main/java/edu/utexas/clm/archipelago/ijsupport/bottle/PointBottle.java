@@ -3,72 +3,112 @@ package edu.utexas.clm.archipelago.ijsupport.bottle;
 import edu.utexas.clm.archipelago.network.translation.Bottle;
 import mpicbg.models.Point;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * A PointBottle to support synchronized point objects across cluster nodes
  */
 public class PointBottle implements Bottle<Point>
 {
-    private static transient HashMap<Integer, Point> pointIds = new HashMap<Integer, Point>();
-    private static transient HashMap<Integer, Integer> idMap = new HashMap<Integer, Integer>();
+//    private static transient HashMap<Integer, Point> pointIds = new HashMap<Integer, Point>();
+    //private static transient HashMap<Integer, Integer> idMap = new HashMap<Integer, Integer>();
+
+
+    private static final Map<Point, Long> pointIdMap =
+            Collections.synchronizedMap(new HashMap<Point, Long>(2048, .75f));
+    private static final Map<Long, Point> idPointMap =
+            Collections.synchronizedMap(new HashMap<Long, Point>(2048, .75f));
+
+    private static final AtomicLong idGenerator = new AtomicLong(1);
 
     private final float[] w, l;
-    private final int id;
+    private final boolean fromOrigin;
+    private final long id;
 
-    public PointBottle(final Point point)
+    public PointBottle(final Point point, final boolean fromOrigin)
     {
-        int localId = System.identityHashCode(point);
+        this.fromOrigin = fromOrigin;
         //this.point = point;
         w = point.getW();
         l = point.getL();
 
-        if (idMap.containsKey(localId))
+        if (fromOrigin)
         {
-            /*
-            We've seen this point come through from a remote computer, which presumably we are
-            sending it back to. Use the original identity hash that was generated for it over there.
-             */
-            id = idMap.get(localId);
+            if (pointIdMap.containsKey(point))
+            {
+                id = pointIdMap.get(point);
+            }
+            else
+            {
+                id = idGenerator.incrementAndGet();
+                idPointMap.put(id, point);
+                pointIdMap.put(point, id);
+            }
         }
         else
         {
-            /*
-             We're sending a locally-generated point
-             In this case, get the identity hash, and map this point to it.
-              */
-            id = localId;
-            pointIds.put(id, point);
+            id = pointIdMap.containsKey(point) ? pointIdMap.get(point) : 0;
         }
+
+//
+//
+//        if (idMap.containsKey(localId))
+//        {
+//            /*
+//            We've seen this point come through from a remote computer, which presumably we are
+//            sending it back to. Use the original identity hash that was generated for it over there.
+//             */
+//            id = idMap.get(localId);
+//        }
+//        else
+//        {
+//            /*
+//             We're sending a locally-generated point
+//             In this case, get the identity hash, and map this point to it.
+//              */
+//            id = localId;
+//            pointIds.put(id, point);
+//        }
     }
 
     public Point unBottle()
     {
-        final Point point = new Point(l, w);
-        if (pointIds.containsKey(id))
+        final Point sentPoint = new Point(l, w);
+
+        if (fromOrigin)
         {
-            /*
-             If we're unbottling a point that is in pointIds, this means that this is a return-copy
-             of a point that we sent over at an earlier time. Rather than return the copy that
-             is a member of this bottle, we find the original point, sync the values from the
-             ones we have here, then return that (original) point.
-             */
-
-            final Point origPoint = pointIds.get(id);
-
-            syncPoint(origPoint, point);
-
-            return origPoint;
+            // This code runs on a remote node
+            Point point = idPointMap.get(id);
+            if (point == null)
+            {
+                idPointMap.put(id, sentPoint);
+                pointIdMap.put(sentPoint, id);
+                return sentPoint;
+            }
+            else
+            {
+                syncPoint(point, sentPoint);
+                return point;
+            }
         }
         else
         {
-            /*
-            pointIds doesn't contain this key. This means that we're running on a client node,
-            and we should map the id so that we can be sure to send the original id when we
-            re-bottle it later.
-             */
-            idMap.put(System.identityHashCode(point), id);
-            return point;
+            // This code runs on the root node.
+            // Now, we're retrieving a point that may have been on a round trip.
+            if (id == 0)
+            {
+                return sentPoint;
+            }
+            else
+            {
+                final Point origPoint = idPointMap.get(id);
+                syncPoint(origPoint, sentPoint);
+                return origPoint;
+            }
         }
     }
 
