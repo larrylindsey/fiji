@@ -71,6 +71,7 @@ public class ArchipelagoClient implements TransceiverListener
         {
             this.interval = interval;
             this.runtime = runtime;
+            super.setDaemon(true);
         }
         
         public void run()
@@ -102,6 +103,7 @@ public class ArchipelagoClient implements TransceiverListener
         {
             process = pm;
             running = new AtomicBoolean(true);
+            super.setDaemon(true);
         }
         
         public void cancel()
