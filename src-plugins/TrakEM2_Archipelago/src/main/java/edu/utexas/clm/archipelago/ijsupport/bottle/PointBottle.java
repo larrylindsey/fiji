@@ -3,7 +3,6 @@ package edu.utexas.clm.archipelago.ijsupport.bottle;
 import edu.utexas.clm.archipelago.network.translation.Bottle;
 import mpicbg.models.Point;
 
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -14,9 +13,6 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class PointBottle implements Bottle<Point>
 {
-//    private static transient HashMap<Integer, Point> pointIds = new HashMap<Integer, Point>();
-    //private static transient HashMap<Integer, Integer> idMap = new HashMap<Integer, Integer>();
-
 
     private static final Map<Point, Long> pointIdMap =
             Collections.synchronizedMap(new HashMap<Point, Long>(2048, .75f));
@@ -53,26 +49,6 @@ public class PointBottle implements Bottle<Point>
         {
             id = pointIdMap.containsKey(point) ? pointIdMap.get(point) : 0;
         }
-
-//
-//
-//        if (idMap.containsKey(localId))
-//        {
-//            /*
-//            We've seen this point come through from a remote computer, which presumably we are
-//            sending it back to. Use the original identity hash that was generated for it over there.
-//             */
-//            id = idMap.get(localId);
-//        }
-//        else
-//        {
-//            /*
-//             We're sending a locally-generated point
-//             In this case, get the identity hash, and map this point to it.
-//              */
-//            id = localId;
-//            pointIds.put(id, point);
-//        }
     }
 
     public Point unBottle()
