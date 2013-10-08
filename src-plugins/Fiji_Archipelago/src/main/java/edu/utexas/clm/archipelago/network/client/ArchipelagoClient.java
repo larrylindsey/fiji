@@ -28,6 +28,7 @@ import edu.utexas.clm.archipelago.compute.ProcessManager;
 import edu.utexas.clm.archipelago.data.ClusterMessage;
 import edu.utexas.clm.archipelago.network.MessageXC;
 import edu.utexas.clm.archipelago.network.translation.Bottler;
+import edu.utexas.clm.archipelago.network.translation.PathSubstitutingFileTranslator;
 import edu.utexas.clm.archipelago.util.XCErrorAdapter;
 
 import java.io.*;
@@ -71,7 +72,6 @@ public class ArchipelagoClient implements TransceiverListener
         {
             this.interval = interval;
             this.runtime = runtime;
-            super.setDaemon(true);
         }
         
         public void run()
@@ -103,7 +103,6 @@ public class ArchipelagoClient implements TransceiverListener
         {
             process = pm;
             running = new AtomicBoolean(true);
-            super.setDaemon(true);
         }
         
         public void cancel()
@@ -145,7 +144,8 @@ public class ArchipelagoClient implements TransceiverListener
     {
         this(id, inStream, outStream, new XCErrorAdapter()
         {
-            protected boolean handleCustomRX(final Throwable t, final MessageXC xc)
+            protected boolean handleCustomRX(final Throwable t, final MessageXC xc,
+                                             final ClusterMessage cm)
             {
                 if (t instanceof ClassCastException)
                 {
@@ -172,17 +172,19 @@ public class ArchipelagoClient implements TransceiverListener
                 }
             }
 
-            protected boolean handleCustomTX(final Throwable t, final MessageXC xc)
+            protected boolean handleCustomTX(final Throwable t, final MessageXC xc,
+                                             final ClusterMessage cm)
             {
-                if (t instanceof IOException)
+                xc.queueMessage(MessageType.ERROR, t);
+                /*if (t instanceof IOException)
                 {
                     reportTX(t, t.toString(), xc);
                     xc.close();
                 }
                 else
                 {
-                    xc.queueMessage(MessageType.ERROR, t);
-                }
+                  xc.queueMessage(MessageType.ERROR, t);
+                }*/
                 return true;
             }
         });
@@ -324,13 +326,14 @@ public class ArchipelagoClient implements TransceiverListener
 
                 case SETFSTRANSLATION:
                     final Duplex<String, String> translation = (Duplex<String, String>)object;
-                    xc.setFileSystemTranslation(translation.a, translation.b);
+                    xc.setFileSystemTranslator(
+                            new PathSubstitutingFileTranslator(translation.a, translation.b));
                     break;
             }
         }
         catch (ClassCastException cce)
         {
-            xcEListener.handleRXThrowable(cce, xc);
+            xcEListener.handleRXThrowable(cce, xc, cm);
         }
     }
 
@@ -353,6 +356,7 @@ public class ArchipelagoClient implements TransceiverListener
     {
         if (active.get())
         {
+            Thread.dumpStack();
             FijiArchipelago.log("Closing Client");
             active.set(false);
             

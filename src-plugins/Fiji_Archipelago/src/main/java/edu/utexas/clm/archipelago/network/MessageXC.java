@@ -26,96 +26,86 @@ import edu.utexas.clm.archipelago.listen.TransceiverExceptionListener;
 import edu.utexas.clm.archipelago.listen.TransceiverListener;
 import edu.utexas.clm.archipelago.network.translation.Bottle;
 import edu.utexas.clm.archipelago.network.translation.Bottler;
+import edu.utexas.clm.archipelago.network.translation.FileTranslator;
 
 import java.io.*;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.ConcurrentModificationException;
+import java.util.List;
 import java.util.Vector;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Message transceiver class
  */
 public class MessageXC
 {
-
-    private class FileTranslatingInputStream extends ObjectInputStream
+    private class NullFileTranslator implements FileTranslator
     {
-        public FileTranslatingInputStream(final InputStream is) throws IOException
+
+        public String getLocalPath(final String remotePath)
+        {
+            return remotePath;
+        }
+
+        public String getRemotePath(final String localPath)
+        {
+            return localPath;
+        }
+    }
+
+
+    private class BottlingInputStream extends ObjectInputStream
+    {
+        public BottlingInputStream(final InputStream is) throws IOException
         {
             super(is);
             enableResolveObject(true);
         }
 
-        private Object unBottle(final Object object)
+        protected final Object resolveObject(final Object object) throws IOException
         {
             if (object instanceof Bottle)
             {
                 Bottle bottle = (Bottle)object;
-                return bottle.unBottle();
+                return bottle.unBottle(xc);
             }
             else
             {
                 return object;
             }
         }
-
-        protected final Object resolveObject(final Object object)
-        {
-            final Object resolved = unBottle(object);
-
-            if (resolved instanceof File)
-            {
-                final File file = (File)object;
-                return translateFile(file, false);
-            }
-            else
-            {
-                return resolved;
-            }
-        }
     }
 
-    private class FileTranslatingOutputStream extends ObjectOutputStream
+    private class BottlingOutputStream extends ObjectOutputStream
     {
 
-        public FileTranslatingOutputStream(final OutputStream os) throws IOException
+        public BottlingOutputStream(final OutputStream os) throws IOException
         {
             super(os);
             enableReplaceObject(true);
         }
 
-        private Object bottle(final Object object)
+        protected final Object replaceObject(final Object object) throws IOException
         {
-            ArrayList<Bottler> localBottlers = new ArrayList<Bottler>(bottlers);
-            for (final Bottler bottler : localBottlers)
+            /*
+            This seems like it could get costly as the number of bottles increases.
+            If this is the case, explore lower cost options, like look up tables or hashmaps on
+            the class name.
+             */
+            List<Bottler> bottlerList = new ArrayList<Bottler>(bottlers);
+            for (final Bottler bottler : bottlerList)
             {
-
                 if (bottler.accepts(object))
                 {
-                    return bottler.bottle(object);
+                    return bottler.bottle(object, xc);
                 }
             }
             return object;
-        }
-
-
-        protected final Object replaceObject(final Object object)
-        {
-            final Object replacement = bottle(object);
-
-            if (replacement instanceof File)
-            {
-                final File file = (File)object;
-                return translateFile(file, true);
-            }
-            else
-            {
-                return replacement;
-            }
-
         }
     }
 
@@ -140,9 +130,8 @@ public class MessageXC
                         }
                     }
                     xcListener.handleMessage(message);
-                    objectInputStream = new FileTranslatingInputStream(inStream);
                 }
-                catch (ClassCastException cce)
+                /*catch (ClassCastException cce)
                 {
                     xcExceptionListener.handleRXThrowable(cce, xc);
                 }
@@ -153,10 +142,21 @@ public class MessageXC
                 catch (ClassNotFoundException cnfe)
                 {
                     xcExceptionListener.handleRXThrowable(cnfe, xc);
-                }
-                catch (Exception e)
+                }*/
+                catch (Throwable e)
                 {
-                    xcExceptionListener.handleRXThrowable(e, xc);
+                    xcExceptionListener.handleRXThrowable(e, xc, null);
+                }
+                finally
+                {
+                    try
+                    {
+                        objectInputStream = new BottlingInputStream(inStream);
+                    }
+                    catch (IOException ioe)
+                    {
+                        close();
+                    }
                 }
             }
         }
@@ -172,6 +172,10 @@ public class MessageXC
                 try
                 {
                     nextMessage = messageQ.poll(waitTime, tUnit);
+/*                    if (nextMessage.type == MessageType.PROCESS)
+                    {
+                        lastSentID.set(((ProcessManager) nextMessage.o).getID());
+                    }*/
                 }
                 catch (InterruptedException ie)
                 {
@@ -189,10 +193,9 @@ public class MessageXC
                         }
                         objectOutputStream.writeObject(nextMessage);
                         objectOutputStream.flush();
-                        objectOutputStream = new FileTranslatingOutputStream(outStream);
 
                     }
-                    catch (NotSerializableException nse)
+                    /*catch (NotSerializableException nse)
                     {
                         xcExceptionListener.handleTXThrowable(nse, xc);
                     }
@@ -207,10 +210,21 @@ public class MessageXC
                     catch (RuntimeException re)
                     {
                         xcExceptionListener.handleTXThrowable(re, xc);
-                    }
-                    catch (Exception e)
+                    }*/
+                    catch (Throwable e)
                     {
-                        xcExceptionListener.handleTXThrowable(e, xc);
+                        xcExceptionListener.handleTXThrowable(e, xc, nextMessage);
+                    }
+                    finally
+                    {
+                        try
+                        {
+                            objectOutputStream = new BottlingOutputStream(outStream);
+                        }
+                        catch (IOException ioe)
+                        {
+                            close();
+                        }
                     }
                 }
             }
@@ -220,12 +234,14 @@ public class MessageXC
     public static final long DEFAULT_WAIT = 10000;
     public static final TimeUnit DEFAULT_UNIT = TimeUnit.MILLISECONDS;
 
-    private final Vector<Bottler> bottlers;
+    private final List<Bottler> bottlers;
     private final ArrayBlockingQueue<ClusterMessage> messageQ;
-    private FileTranslatingOutputStream objectOutputStream;
-    private FileTranslatingInputStream objectInputStream;
+    private BottlingOutputStream objectOutputStream;
+    private BottlingInputStream objectInputStream;
+    private FileTranslator fileTranslator;
     private final Thread txThread, rxThread;
-    private final AtomicBoolean active, enableFileTranslation;
+    private final AtomicBoolean active;
+    private final AtomicLong lastSentID;
     private final long waitTime;
     private final TimeUnit tUnit;
     private final TransceiverListener xcListener;
@@ -233,8 +249,6 @@ public class MessageXC
     private final OutputStream outStream;
     private final InputStream inStream;
     private long id;
-
-    private String localFileRoot, remoteFileRoot;
 
     private final MessageXC xc = this;
 
@@ -254,21 +268,20 @@ public class MessageXC
                      TimeUnit unit) throws IOException
     {
         FijiArchipelago.debug("Creating Message Transciever");
-        enableFileTranslation = new AtomicBoolean(true);
-        bottlers = new Vector<Bottler>();
+        fileTranslator = new NullFileTranslator();
+        bottlers = Collections.synchronizedList(new Vector<Bottler>());
         messageQ = new ArrayBlockingQueue<ClusterMessage>(16, true);
-        objectOutputStream = new FileTranslatingOutputStream(outStream);
-        objectInputStream =  new FileTranslatingInputStream(inStream);
+        objectOutputStream = new BottlingOutputStream(outStream);
+        objectInputStream =  new BottlingInputStream(inStream);
         FijiArchipelago.debug("XC: streams are set");
         this.inStream = inStream;
         this.outStream = outStream;
         active = new AtomicBoolean(true);
+        lastSentID = new AtomicLong(-1);
         waitTime = wait;
         tUnit = unit;
         xcListener = listener;
         xcExceptionListener = listenerE;
-        localFileRoot = "";
-        remoteFileRoot = "";
 
         txThread = new TXThread();
         rxThread = new RXThread();
@@ -277,6 +290,11 @@ public class MessageXC
 
         rxThread.start();
         txThread.start();
+    }
+
+    public long getLastProcessID()
+    {
+        return lastSentID.get();
     }
 
     public void close()
@@ -326,6 +344,7 @@ public class MessageXC
     {
         try
         {
+            System.out.println("XC: Queuing message: " + ClusterMessage.messageToString(message));
             messageQ.put(message);
             return true;
         }
@@ -358,59 +377,37 @@ public class MessageXC
         this.id = id;
     }
 
-    private File translateHelper(final File file, final String fromPath, final String toPath)
+    public String getLocalPath(final String remotePath)
     {
-        final String filePath = file.getAbsolutePath();
-        if (filePath.startsWith(fromPath))
-        {
-            return new File(filePath.replace(fromPath, toPath));
-        }
-        else
-        {
-            return file;
-        }
+        return fileTranslator.getLocalPath(remotePath);
     }
 
-    public File translateFile(final File file,
-                              boolean directionLocalRemote)
+    public String getRemotePath(final String localPath)
     {
-        if (enableFileTranslation.get())
-        {
-            return directionLocalRemote ? translateHelper(file, localFileRoot, remoteFileRoot) :
-                    translateHelper(file, remoteFileRoot, localFileRoot);
-        }
-        else
-        {
-            return file;
-        }
+        return fileTranslator.getRemotePath(localPath);
     }
 
-    public void setFileSystemTranslation(final String local, final String remote)
+    public File getLocalFile(final File remoteFile)
     {
-        if (local.endsWith("/") || local.endsWith("\\"))
-        {
-            localFileRoot = local.substring(0, local.length() - 1);
-        }
-        else
-        {
-            localFileRoot = local;
-        }
-
-        if (remote.endsWith("/") || remote.endsWith("\\"))
-        {
-            remoteFileRoot = remote.substring(0, remote.length() - 1);
-        }
-        else
-        {
-            remoteFileRoot = remote;
-        }
-
-        enableFileTranslation.set(true);
+        return new File(getLocalPath(remoteFile.getAbsolutePath()));
     }
 
-    public void unsetFileSystemTranslation()
+    public File getRemoteFile(final File localFile)
     {
-        enableFileTranslation.set(false);
+        return new File(fileTranslator.getRemotePath(localFile.getAbsolutePath()));
+    }
+
+    public synchronized void setFileSystemTranslator(final FileTranslator ft)
+    {
+        fileTranslator = ft;
+    }
+
+    public synchronized void unsetFileSystemTranslation()
+    {
+        if (!(fileTranslator instanceof NullFileTranslator))
+        {
+            fileTranslator = new NullFileTranslator();
+        }
     }
 
     public void addBottler(final Bottler bottler)
@@ -418,7 +415,7 @@ public class MessageXC
         bottlers.add(bottler);
     }
 
-    public Vector<Bottler> getBottlers()
+    public List<Bottler> getBottlers()
     {
         return bottlers;
     }

@@ -26,6 +26,7 @@ import edu.utexas.clm.archipelago.compute.ProcessManager;
 import edu.utexas.clm.archipelago.data.ClusterMessage;
 import edu.utexas.clm.archipelago.network.MessageXC;
 import edu.utexas.clm.archipelago.network.translation.Bottler;
+import edu.utexas.clm.archipelago.network.translation.PathSubstitutingFileTranslator;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -124,6 +125,7 @@ public class ClusterNode implements TransceiverListener
     
     public boolean setFilePath(String path)
     {
+
         if (nodeParam == null)
         {
             return false;
@@ -131,9 +133,12 @@ public class ClusterNode implements TransceiverListener
         else
         {
             nodeParam.setFileRoot(path);
+            xc.setFileSystemTranslator(
+                    new PathSubstitutingFileTranslator(FijiArchipelago.getFileRoot(), path));
 //            return xc.queueMessage(MessageType.SETFILEROOT, path);
-            return xc.queueMessage(MessageType.SETFSTRANSLATION,
-                    new Duplex<String, String>(path, FijiArchipelago.getFileRoot()));
+//            return xc.queueMessage(MessageType.SETFSTRANSLATION,
+//                    new Duplex<String, String>(path, FijiArchipelago.getFileRoot()));
+            return true;
         }
     }
 
@@ -274,7 +279,6 @@ public class ClusterNode implements TransceiverListener
         {
             if (processHandlers.get(process.getID()) == null)
             {
-                //FijiArchipelago.debug(getHost() + " scheduling process");
                 processHandlers.put(process.getID(), listener);
                 runningProcesses.put(process.getID(), process);
                 process.setRunningOn(this);
@@ -416,7 +420,7 @@ public class ClusterNode implements TransceiverListener
 
                 case ERROR:
                     Exception e = (Exception)object;
-                    xcEListener.handleRXThrowable(e, xc);
+                    xcEListener.handleRXThrowable(e, xc, cm);
                     break;
 
                 default:

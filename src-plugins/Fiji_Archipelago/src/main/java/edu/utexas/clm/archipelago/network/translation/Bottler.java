@@ -1,5 +1,7 @@
 package edu.utexas.clm.archipelago.network.translation;
 
+import edu.utexas.clm.archipelago.network.MessageXC;
+
 import java.io.Serializable;
 
 /**
@@ -12,7 +14,7 @@ public interface Bottler<A> extends Serializable
      * @param o the Object, which will be accepted or not.
      * @return true if this Bottler accepts the given Object.
      */
-    public boolean accepts(Object o);
+    public boolean accepts(final Object o);
 
     /**
      * Return a Bottle that will return an equivalent to the argument when unBottle is called.
@@ -22,7 +24,7 @@ public interface Bottler<A> extends Serializable
      * The Bottle must return an Object with the same signature as the Object argument here.
 
      */
-    public Bottle<A> bottle(Object o);
+    public Bottle<A> bottle(final Object o, final MessageXC xc);
 
     /**
      * Determines whether this Bottler is transferred to the remote node.

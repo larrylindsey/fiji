@@ -57,7 +57,7 @@ public class ArchipelagoFuture<T> implements Future<T>
     private final AtomicBoolean wasCancelled, done, finished;    
     private final Vector<Thread> waitingThreads;
     private final ReentrantLock threadLock;
-    private Exception e;
+    private Throwable e;
     private ClusterNode ranOnNode = null;
    
     
@@ -85,7 +85,7 @@ public class ArchipelagoFuture<T> implements Future<T>
         return id;
     }
     
-    public void setException(final Exception eIn)
+    public void setException(final Throwable eIn)
     {
         e = eIn;
     }

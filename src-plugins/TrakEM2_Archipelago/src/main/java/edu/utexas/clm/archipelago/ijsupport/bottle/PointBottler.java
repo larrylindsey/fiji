@@ -1,5 +1,6 @@
 package edu.utexas.clm.archipelago.ijsupport.bottle;
 
+import edu.utexas.clm.archipelago.network.MessageXC;
 import edu.utexas.clm.archipelago.network.translation.Bottle;
 import edu.utexas.clm.archipelago.network.translation.Bottler;
 import mpicbg.models.Point;
@@ -12,17 +13,16 @@ import java.io.ObjectInputStream;
  */
 public class PointBottler implements Bottler<Point>
 {
+    private boolean isOrigin = true;
 
-    private boolean onRootNode = true;
-
-    public boolean accepts(Object o)
+    public boolean accepts(final Object o)
     {
         return o instanceof Point;
     }
 
-    public Bottle<Point> bottle(Object o)
+    public Bottle<Point> bottle(final Object o, final MessageXC xc)
     {
-        return new PointBottle((Point)o, onRootNode);
+        return new PointBottle((Point)o, isOrigin);
     }
 
     public boolean transfer()
@@ -30,13 +30,11 @@ public class PointBottler implements Bottler<Point>
         return true;
     }
 
-    private void readObject(
-            ObjectInputStream aInputStream
-    ) throws ClassNotFoundException, IOException {
-        //always perform the default de-serialization first
-        aInputStream.defaultReadObject();
+    private void readObject(ObjectInputStream ois)
+            throws ClassNotFoundException, IOException
+    {
+        ois.defaultReadObject();
 
-        onRootNode = false;
+        isOrigin = false;
     }
-
 }

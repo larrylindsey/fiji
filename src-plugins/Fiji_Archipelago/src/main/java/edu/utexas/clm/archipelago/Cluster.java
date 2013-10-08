@@ -20,8 +20,10 @@ package edu.utexas.clm.archipelago;
 
 
 import edu.utexas.clm.archipelago.compute.*;
+import edu.utexas.clm.archipelago.data.ClusterMessage;
 import edu.utexas.clm.archipelago.exception.ShellExecutionException;
 import edu.utexas.clm.archipelago.listen.ClusterStateListener;
+import edu.utexas.clm.archipelago.listen.MessageType;
 import edu.utexas.clm.archipelago.listen.NodeStateListener;
 import edu.utexas.clm.archipelago.listen.ProcessListener;
 import edu.utexas.clm.archipelago.listen.NodeShellListener;
@@ -32,8 +34,8 @@ import edu.utexas.clm.archipelago.network.node.NodeManager;
 import edu.utexas.clm.archipelago.network.shell.NodeShell;
 import edu.utexas.clm.archipelago.network.shell.SSHNodeShell;
 import edu.utexas.clm.archipelago.network.shell.SocketNodeShell;
-import edu.utexas.clm.archipelago.network.translation.Bottle;
 import edu.utexas.clm.archipelago.network.translation.Bottler;
+import edu.utexas.clm.archipelago.network.translation.FileBottler;
 import edu.utexas.clm.archipelago.ui.ArchipelagoUI;
 import edu.utexas.clm.archipelago.util.ProcessManagerCoreComparator;
 import edu.utexas.clm.archipelago.util.XCErrorAdapter;
@@ -227,26 +229,8 @@ public class Cluster implements NodeStateListener, NodeShellListener
                      */
                     public boolean processFinished(ProcessManager<?> process)
                     {
-                        final long id = process.getID();
-                        final ArchipelagoFuture<?> future = futures.remove(id);
-
-                        if (future == null)
-                        {
-                            return false;
-                        }
-                        
-                        runningProcesses.remove(id);
-                        decrementJobCount();
-
-                        try
-                        {
-                            future.finish(process);
-                            return true;
-                        }
-                        catch (ClassCastException cce)
-                        {
-                            return false;
-                        }
+                        runningProcesses.remove(process.getID());
+                        return finishFuture(process);
                     }
                 };
                 
@@ -1109,8 +1093,16 @@ public class Cluster implements NodeStateListener, NodeShellListener
 
         xcEListener = new XCErrorAdapter()
         {
-            public boolean handleCustom(final Throwable t, final MessageXC mxc)
+            public boolean handleCustom(final Throwable t, final MessageXC mxc,
+                                        final ClusterMessage message)
             {
+                if (message.type == MessageType.PROCESS)
+                {
+                    final ProcessManager<?> pm = (ProcessManager<?>)message.o;
+                    pm.setException(t);
+                    finishFuture(pm);
+                }
+
                 if (t instanceof StreamCorruptedException ||
                         t instanceof EOFException)
                 {
@@ -1121,8 +1113,15 @@ public class Cluster implements NodeStateListener, NodeShellListener
                 return true;
             }
             
-            public boolean handleCustomRX(final Throwable t, final MessageXC xc)
+            public boolean handleCustomRX(final Throwable t, final MessageXC xc,
+                                          final ClusterMessage message)
             {
+                final long lastID = xc.getLastProcessID();
+                if (message.type == MessageType.ERROR)
+                {
+                    errorFuture(lastID, (Throwable)message.o);
+                }
+
                 if (t instanceof ClassNotFoundException)
                 {
                     reportRX(t, "Check that your jars are all correctly synchronized. " + t, xc);
@@ -1145,7 +1144,8 @@ public class Cluster implements NodeStateListener, NodeShellListener
                 return true;
             }
 
-            public boolean handleCustomTX(final Throwable t, MessageXC xc)
+            public boolean handleCustomTX(final Throwable t, MessageXC xc,
+                                          final ClusterMessage message)
             {
                 if (t instanceof NotSerializableException)
                 {
@@ -1193,7 +1193,7 @@ public class Cluster implements NodeStateListener, NodeShellListener
             FijiArchipelago.err("Could not get canonical host name for local machine. Using localhost instead");
         }
         
-
+        addBottler(new FileBottler());
     }
 
     public boolean equals(Object o)
@@ -1602,6 +1602,47 @@ public class Cluster implements NodeStateListener, NodeShellListener
             haltFinished();
         }
     }
+
+
+    private void errorFuture(long id, Throwable e)
+    {
+        final ArchipelagoFuture<?> future = futures.remove(id);
+
+        if (future == null)
+        {
+            return;
+        }
+
+        future.setException(e);
+        future.cancel(true);
+
+    }
+
+
+    private synchronized boolean finishFuture(final ProcessManager<?> pm)
+    {
+        final long id = pm.getID();
+        final ArchipelagoFuture<?> future = futures.remove(id);
+
+        if (future == null)
+        {
+            return false;
+        }
+
+        decrementJobCount();
+
+        try
+        {
+            future.finish(pm);
+            return true;
+        }
+        catch (ClassCastException cce)
+        {
+            return false;
+        }
+    }
+
+
 
     public ArrayList<ClusterNode> getNodes()
     {

@@ -83,6 +83,8 @@ public class ClusterMessage implements Serializable
                 return "set fs translation";
             case LOG:
                 return "log";
+            case BOTTLER:
+                return "bottler";
             default:
                 return "unknown";
         }

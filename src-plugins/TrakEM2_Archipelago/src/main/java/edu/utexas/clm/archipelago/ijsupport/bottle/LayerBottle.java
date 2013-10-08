@@ -1,6 +1,7 @@
 package edu.utexas.clm.archipelago.ijsupport.bottle;
 
 import edu.utexas.clm.archipelago.ijsupport.TrakEM2Archipelago;
+import edu.utexas.clm.archipelago.network.MessageXC;
 import edu.utexas.clm.archipelago.network.translation.Bottle;
 import ini.trakem2.Project;
 import ini.trakem2.display.Layer;
@@ -21,7 +22,7 @@ public class LayerBottle implements Bottle<Layer>
         z = l.getZ();
     }
 
-    public Layer unBottle()
+    public Layer unBottle(final MessageXC xc)
     {
         final Project p = TrakEM2Archipelago.getProject(file);
         return p.getRootLayerSet().getLayer(z);
