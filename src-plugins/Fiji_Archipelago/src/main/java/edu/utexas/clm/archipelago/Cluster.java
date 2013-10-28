@@ -413,10 +413,11 @@ public class Cluster implements NodeStateListener, NodeShellListener
                 }
                 else
                 {
-                    if(future.finish(null))
-                    {
-                        decrementJobCount();
-                    }
+                    /*
+                     Was here: call future.finish(null), but this function is only called from
+                     future.cancel.
+                    */
+                    decrementJobCount();
                 }
 
                 if (runningOn != null)
@@ -569,7 +570,7 @@ public class Cluster implements NodeStateListener, NodeShellListener
             futures.put(future.getID(), future);
             if (!scheduler.queueJob(tCallable, future.getID(), numCores, isFractional))
             {
-                future.finish(null);
+                future.finish(new Exception("Could not schedule"));
                 futures.remove(future.getID());
             }
             return future;
@@ -1433,9 +1434,8 @@ public class Cluster implements NodeStateListener, NodeShellListener
                         if (!scheduler.queueJob(pm, true))
                         {
                             FijiArchipelago.err("Could not reschedule job " + pm.getID());
-                            futures.get(pm.getID()).setException(
+                            futures.get(pm.getID()).finish(
                                     new Exception("Could not reschedule job"));
-                            futures.get(pm.getID()).finish(null);
                         }
                     }
                 }
@@ -1613,8 +1613,7 @@ public class Cluster implements NodeStateListener, NodeShellListener
             return;
         }
 
-        future.setException(e);
-        future.cancel(true);
+        future.finish(e);
 
     }
 
