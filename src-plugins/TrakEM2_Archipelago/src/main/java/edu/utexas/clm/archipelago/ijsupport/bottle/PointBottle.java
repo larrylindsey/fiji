@@ -7,6 +7,7 @@ import mpicbg.models.Point;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -16,34 +17,39 @@ public class PointBottle implements Bottle<Point>
 {
     private static final Map<Integer, Point> idPointMap =
             Collections.synchronizedMap(new HashMap<Integer, Point>());
-    private static final Map<Integer, Integer> idIdMap =
-            Collections.synchronizedMap(new HashMap<Integer, Integer>());
+    /*
+    As of this writing, Point has no .equals() nor .hashCode(), meaning this map uses the
+    system default hashCode, and instance equality, which is exactly what we want.
+    TODO: Consider using IdentityHashMap, to be future-proof.
+     */
+    private static final Map<Point, Integer> pointIdMap =
+            Collections.synchronizedMap(new HashMap<Point, Integer>());
     private static final ReentrantLock idPointLock = new ReentrantLock();
     private static final ReentrantLock idIdLock = new ReentrantLock();
+    private static final AtomicInteger idGenerator = new AtomicInteger(1);
 
-
-    private static void mapId(final int local, final int original)
+    private static void mapIdToPoint(final Point point, final int original)
     {
         idIdLock.lock();
 
-        idIdMap.put(local, original);
+        pointIdMap.put(point, original);
 
         idIdLock.unlock();
     }
 
-    private static int getId(final int local)
+    private static int getId(final Point point, final int idDefault)
     {
         final Integer id;
         idIdLock.lock();
 
-        id = idIdMap.get(local);
+        id = pointIdMap.get(point);
 
         idIdLock.unlock();
 
-        return id == null ? local : id;
+        return id == null ? idDefault : id;
     }
 
-    private static void mapPoint(final int orig, final Point point)
+    private static void mapPointToID(final int orig, final Point point)
     {
         idPointLock.lock();
 
@@ -74,35 +80,43 @@ public class PointBottle implements Bottle<Point>
      */
     public PointBottle(final Point point, boolean isOrigin)
     {
-        int localId = System.identityHashCode(point);
-        //this.point = point;
+        // This constructor should only be called from PointBottler.bottle, which is sync'ed.
+
+        // Assume identityHashCode does not change for a given Object
+        int idHash = System.identityHashCode(point);
+
         w = point.getW();
         l = point.getL();
-
         fromOrigin = isOrigin;
 
         if (fromOrigin)
         {
             /*
             Sending from root node to client node
-
-            We've seen this point come through from a remote computer, which presumably we are
-            sending it back to. Use the original identity hash that was generated for it over there.
             */
 
-            id = localId;
-            mapPoint(id, point);
-            //idPointMap.put(id, point);
+            //Check to see if we've sent this point before.
+            if (pointIdMap.containsKey(point))
+            {
+                // If we have, just re-use the existing id.
+                id = getId(point, idHash);
+            }
+            else
+            {
+                // If we haven't, generate a new id...
+                id = idGenerator.getAndIncrement();
+                // Map that id to the idHash
+                mapIdToPoint(point, id);
+                // Map the point to the id.
+                mapPointToID(id, point);
+            }
         }
         else
         {
             /*
             Sending from client node to root node
-
-             We're sending a locally-generated point
-             In this case, get the identity hash, and map this point to it.
             */
-            id = getId(localId);
+            id = getId(point, idHash);
         }
     }
 
@@ -125,12 +139,12 @@ public class PointBottle implements Bottle<Point>
                 /*
                 Otherwise, map the new id to the original id
                 */
-                mapId(System.identityHashCode(point), id);
+                mapIdToPoint(point, id);
                 /*
                 Map the original id to the new point so that we can retrieve it if the original id
                 comes through again.
                  */
-                mapPoint(id, point);
+                mapPointToID(id, point);
 
                 return point;
             }

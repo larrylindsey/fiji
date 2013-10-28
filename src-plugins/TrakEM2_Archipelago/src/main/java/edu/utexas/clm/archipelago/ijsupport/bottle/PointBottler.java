@@ -20,7 +20,7 @@ public class PointBottler implements Bottler<Point>
         return o instanceof Point;
     }
 
-    public Bottle<Point> bottle(final Object o, final MessageXC xc)
+    public synchronized Bottle<Point> bottle(final Object o, final MessageXC xc)
     {
         return new PointBottle((Point)o, isOrigin);
     }
