@@ -4,6 +4,7 @@ import edu.utexas.archipelago.image.ImageBlockDeblock;
 import edu.utexas.clm.archipelago.Cluster;
 import edu.utexas.clm.archipelago.FijiArchipelago;
 import edu.utexas.clm.archipelago.data.Duplex;
+
 import edu.utexas.clm.archipelago.data.FileChunk;
 import ij.IJ;
 import ij.ImagePlus;
@@ -23,14 +24,14 @@ import java.util.concurrent.*;
 public class BatchWekaSegmentation
 {
     public static class WekaSegmentationCallable
-            implements Callable<Duplex<Integer, Duplex<FileChunk, ArrayList<FileChunk>>>>, Serializable
+            implements Callable<Duplex<Integer, Duplex<File, ArrayList<File>>>>, Serializable
     {
 
-        private final FileChunk file;
-        private final FileChunk classifier;
+        private final File file;
+        private final File classifier;
         private final int index;
 
-        public WekaSegmentationCallable(FileChunk inFile, FileChunk inClassifier, int index)
+        public WekaSegmentationCallable(final File inFile, final File inClassifier, int index)
         {
             this.index = index;
 
@@ -38,18 +39,19 @@ public class BatchWekaSegmentation
             classifier = inClassifier;
         }
 
-        public Duplex<Integer, Duplex<FileChunk, ArrayList<FileChunk>>> call() throws Exception
+        public Duplex<Integer, Duplex<File, ArrayList<File>>> call() throws Exception
         {
             try
             {
-                final String inPath = file.getData();
+                final String inPath = file.getAbsolutePath();
+
                 final int idot = inPath.lastIndexOf('.');
                 final String formatString = inPath.substring(0, idot) + "_seg_%02d.png";
                 
-                final ArrayList<FileChunk> outputFiles =
-                        segment(file.getData(), classifier.getData(), formatString);
-                return new Duplex<Integer, Duplex<FileChunk, ArrayList<FileChunk>>>(index,
-                        new Duplex<FileChunk, ArrayList<FileChunk>>(file, outputFiles));
+                final ArrayList<File> outputFiles =
+                        segment(file.getAbsolutePath(), classifier.getAbsolutePath(), formatString);
+                return new Duplex<Integer, Duplex<File, ArrayList<File>>>(index,
+                        new Duplex<File, ArrayList<File>>(file, outputFiles));
             }
             catch (Exception e)
             {
@@ -58,7 +60,7 @@ public class BatchWekaSegmentation
             }
         }
 
-        public ArrayList<FileChunk> segment(final String file,
+        public ArrayList<File> segment(final String file,
                                             final String classifier,
                                             final String outputFormat) throws Exception
         {
@@ -79,7 +81,7 @@ public class BatchWekaSegmentation
             final File f = new File(classifier);
             final InputStream is = new FileInputStream( f );
             final ObjectInputStream objectInputStream = new ObjectInputStream(is);
-            final ArrayList<FileChunk> outputFiles = new ArrayList<FileChunk>();
+            final ArrayList<File> outputFiles = new ArrayList<File>();
 
             AbstractClassifier abstractClassifier;
             Instances header;
@@ -103,15 +105,15 @@ public class BatchWekaSegmentation
             
             for (int i = 1; i <= impSeg.getImageStackSize(); ++i)
             {
-                FileChunk outChunk = new FileChunk(String.format(outputFormat, i));
+                File outFile = new File(String.format(outputFormat, i));
                 impSave = new ImagePlus(impSeg.getTitle(), impSeg.getImageStack().getProcessor(i));
                 
                 
-                FijiArchipelago.log("Saving classified image to " + outChunk.getData());
+                FijiArchipelago.log("Saving classified image to " + outFile.getAbsolutePath());
 
-                new FileSaver(impSave).saveAsTiff(outChunk.getData());
+                new FileSaver(impSave).saveAsTiff(outFile.getAbsolutePath());
                 
-                outputFiles.add(outChunk);
+                outputFiles.add(outFile);
             }
 
             FijiArchipelago.log("Done.");
@@ -121,7 +123,7 @@ public class BatchWekaSegmentation
     }
 
 
-    private final FileChunk classifier;
+    private final File classifier;
     private final int[] blockSize, ovlpPx;
     private final int nClasses;
     private final ExecutorService ibdService;
@@ -146,7 +148,7 @@ public class BatchWekaSegmentation
                                  final ExecutorService ibdService, final ExecutorService segService)
             throws InvalidAlgorithmParameterException
     {
-        this.classifier = new FileChunk(classifier.getAbsolutePath());
+        this.classifier = classifier;
         this.blockSize = blockSize;
         this.ovlpPx = ovlpPx;
         this.ibdService = ibdService;
@@ -189,9 +191,9 @@ public class BatchWekaSegmentation
                                                                      to one of the classes in the
                                                                      classifier model.
         */
-        final ArrayList<Future<Duplex<Integer, Duplex<FileChunk, ArrayList<FileChunk>>>>>
+        final ArrayList<Future<Duplex<Integer, Duplex<File, ArrayList<File>>>>>
                 segFutures =
-                new ArrayList<Future<Duplex<Integer, Duplex<FileChunk, ArrayList<FileChunk>>>>>();
+                new ArrayList<Future<Duplex<Integer, Duplex<File, ArrayList<File>>>>>();
         final ArrayList<Future<ImageBlockDeblock>> outputFutures =
                 new ArrayList<Future<ImageBlockDeblock>>();
         final ArrayList<ImageBlockDeblock> ibdList = new ArrayList<ImageBlockDeblock>();
@@ -225,7 +227,7 @@ public class BatchWekaSegmentation
 
                 ibdList.add(ibd);
 
-                for (FileChunk fc : ibd.imageBlockFiles())
+                for (File fc : ibd.imageBlockFiles())
                 {
                     final WekaSegmentationCallable callable =
                             new WekaSegmentationCallable(fc, classifier, i);
@@ -250,9 +252,9 @@ public class BatchWekaSegmentation
         // Recombine the blocks
         try
         {
-            for (Future<Duplex<Integer, Duplex<FileChunk, ArrayList<FileChunk>>>> future : segFutures)
+            for (Future<Duplex<Integer, Duplex<File, ArrayList<File>>>> future : segFutures)
             {
-                final Duplex<Integer, Duplex<FileChunk, ArrayList<FileChunk>>> segDup = future.get();
+                final Duplex<Integer, Duplex<File, ArrayList<File>>> segDup = future.get();
                 final int index = segDup.a;
                 //final int n = segDup.b.b.size();
 
@@ -302,7 +304,7 @@ public class BatchWekaSegmentation
                 
                 for (int i = 0; i < nClasses; ++i)
                 {
-                    File segFile = new File(ibd.getOutputFile(i).getData());
+                    File segFile = ibd.getOutputFile(i);
 
                     FijiArchipelago.log("Adding file " + segFile.getName() + " to VS");
                     stacks.get(i).addSlice(segFile.getAbsolutePath());
