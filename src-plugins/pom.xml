@@ -109,6 +109,7 @@
 		<module>TopoJ_</module>
 		<module>TrackMate_</module>
 		<module>Trainable_Segmentation</module>
+		<module>TrakEM2_Archipelago</module>
 		<module>TransformJ_</module>
 		<module>TurboReg_</module>
 		<module>UnwarpJ_</module>
