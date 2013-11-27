@@ -364,7 +364,7 @@ public class ClusterNode implements TransceiverListener
                     break;
 
                 case LOG:
-                    FijiArchipelago.log(object.toString());
+                    FijiArchipelago.log("[" + getHost() + "] " + object.toString());
                     break;
 
                 case PROCESS:
