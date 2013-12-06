@@ -60,12 +60,8 @@ public class BatchWekaSegmentation
             }
         }
 
-        public ArrayList<File> segment(final String file,
-                                            final String classifier,
-                                            final String outputFormat) throws Exception
+        private ImagePlus openImageOrException(final String file) throws IOException
         {
-            ImagePlus impSeg, impSave;
-
             FijiArchipelago.log("Loading image from " + file);
 
             final ImagePlus imp = IJ.openImage(file);
@@ -75,13 +71,27 @@ public class BatchWekaSegmentation
                 throw new IOException("Could not read file: " + file);
             }
 
-            FijiArchipelago.log("Creating weka segmentation object");
+            return imp;
+        }
 
-            final WekaSegmentation seg = new WekaSegmentation(imp);
+        public ArrayList<File> segment(final String file,
+                                            final String classifier,
+                                            final String outputFormat) throws Exception
+        {
+            final File imageFile = new File(file);
             final File f = new File(classifier);
+            final ArrayList<File> outputFiles = new ArrayList<File>();
+
+            ImagePlus impSeg, impSave;
+            final ImagePlus imp = openImageOrException(file);
+            FijiArchipelago.log("Creating weka segmentation object");
+            final WekaSegmentation seg = new WekaSegmentation(imp);
+
             final InputStream is = new FileInputStream( f );
             final ObjectInputStream objectInputStream = new ObjectInputStream(is);
-            final ArrayList<File> outputFiles = new ArrayList<File>();
+
+            boolean cacheOK = true;
+
 
             AbstractClassifier abstractClassifier;
             Instances header;
@@ -93,31 +103,55 @@ public class BatchWekaSegmentation
 
             objectInputStream.close();
 
+
+
             FijiArchipelago.log("Calling seg.setClassifier");
 
             seg.setClassifier(abstractClassifier);
             seg.setTrainHeader(header);
 
-            FijiArchipelago.log("Applying classifier to image");
-
-            impSeg = seg.applyClassifier(imp, 1, true);
-            
-            
-            for (int i = 1; i <= impSeg.getImageStackSize(); ++i)
+            // Generate output files and check if they already exist.
+            // If they already exist, and they're last-modified date is later than both the
+            // input image file and the classifier file, then we don't need to to all of this work.
+            for (int i = 1; i <= seg.getNumOfClasses(); ++i)
             {
-                File outFile = new File(String.format(outputFormat, i));
-                impSave = new ImagePlus(impSeg.getTitle(), impSeg.getImageStack().getProcessor(i));
-                
-                
-                FijiArchipelago.log("Saving classified image to " + outFile.getAbsolutePath());
-
-                new FileSaver(impSave).saveAsTiff(outFile.getAbsolutePath());
-                
+                final File outFile = new File(String.format(outputFormat, i));
                 outputFiles.add(outFile);
+                cacheOK &= outFile.exists() &&
+                        (outFile.lastModified() > f.lastModified() &&
+                         outFile.lastModified() > imageFile.lastModified());
             }
 
-            FijiArchipelago.log("Done.");
-            
+            if (!cacheOK)
+            {
+                FijiArchipelago.log("Applying classifier to image");
+
+                impSeg = seg.applyClassifier(imp, 1, true);
+
+
+                for (int i = 1; i <= impSeg.getImageStackSize(); ++i)
+                {
+                    final File outFile = outputFiles.get(i - 1);
+
+                    impSave = new ImagePlus(impSeg.getTitle(),
+                            impSeg.getImageStack().getProcessor(i));
+
+
+                    FijiArchipelago.log("Saving classified image to " + outFile.getAbsolutePath());
+
+                    new FileSaver(impSave).saveAsTiff(outFile.getAbsolutePath());
+
+
+                }
+
+                FijiArchipelago.log("Done.");
+            }
+            else
+            {
+                FijiArchipelago.log("Found a good cache for " + imageFile +
+                        ". Being lazy and refusing to work.");
+            }
+
             return outputFiles;
         }
     }

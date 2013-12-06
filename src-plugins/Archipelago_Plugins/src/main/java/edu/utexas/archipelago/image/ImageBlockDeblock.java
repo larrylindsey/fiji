@@ -70,6 +70,13 @@ public class ImageBlockDeblock implements Serializable
             final int[][] pixBlock = new int[w][h];
             final ImageProcessor ipBlock = ip.createProcessor(w, h);
             final String filePath = blockFilePath(w, h, x0, y0);
+            final File outputFile = new File(filePath);
+
+            // if the output file exists and it is older than the input file, don't re-compute.
+            if (outputFile.exists() && outputFile.lastModified() > inputFile.lastModified())
+            {
+                return outputFile;
+            }
 
             for (int x = 0; x < w; ++x)
             {
@@ -92,7 +99,7 @@ public class ImageBlockDeblock implements Serializable
                 FijiArchipelago.log("Successfully wrote file " + filePath);
             }
 
-            return new File(filePath);
+            return outputFile;
         }
     }
 
