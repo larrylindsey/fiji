@@ -1,6 +1,7 @@
 package edu.utexas.clm.archipelago.example;
 
 import edu.utexas.clm.archipelago.Cluster;
+import edu.utexas.clm.archipelago.compute.ArchipelagoFuture;
 import ij.IJ;
 import ij.plugin.PlugIn;
 
@@ -68,8 +69,16 @@ public class Stress_Test implements PlugIn
             {
                 try
                 {
-                    IJ.log("Waiting for the future...");
                     Future<Double> future = futures.get(0);
+                    if (future instanceof ArchipelagoFuture)
+                    {
+                        ArchipelagoFuture archf = (ArchipelagoFuture)future;
+                        IJ.log("Waiting for future " + archf.getID() + "...");
+                    }
+                    else
+                    {
+                        IJ.log("Waiting for the future...");
+                    }
                     Double d = future.get();
                     IJ.log("The future came!");
                     futures.remove(0);
