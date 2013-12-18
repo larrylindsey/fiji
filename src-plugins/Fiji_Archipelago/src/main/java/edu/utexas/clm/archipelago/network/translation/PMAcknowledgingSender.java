@@ -56,6 +56,7 @@ public class PMAcknowledgingSender
                         FijiArchipelago.log("Interrupted while waiting for ack for job " +
                                 getID());
                     }
+                    FijiArchipelago.debug("Ack sender: finished here for id " + getID());
                 }
             }.start();
 
@@ -69,6 +70,7 @@ public class PMAcknowledgingSender
 
     public void acknowledge()
     {
+        FijiArchipelago.debug("Got ack for id " + getID());
         ack.set(true);
     }
 }

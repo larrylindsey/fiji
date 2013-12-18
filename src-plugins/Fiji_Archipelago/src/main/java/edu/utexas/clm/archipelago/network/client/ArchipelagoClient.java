@@ -284,6 +284,8 @@ public class ArchipelagoClient implements TransceiverListener
                         ack.acknowledge();
                     }
 
+                    FijiArchipelago.debug("Processed ack for " + pmid);
+
                     break;
 
                 case HALT:
