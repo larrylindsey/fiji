@@ -380,7 +380,14 @@ public class ClusterNode implements TransceiverListener
 
                     if (removeProcess(pm))
                     {
+                        FijiArchipelago.log("Finishing process " + pm.getID() + " on host " +
+                                getHost());
                         listener.processFinished(pm);
+                    }
+                    else
+                    {
+                        FijiArchipelago.log("Process " + pm.getID() + " could not be removed from "
+                                + getHost());
                     }
 
                     break;
