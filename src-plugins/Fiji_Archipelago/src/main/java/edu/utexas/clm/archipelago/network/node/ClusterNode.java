@@ -570,7 +570,7 @@ public class ClusterNode implements TransceiverListener
     
     private boolean removeProcess(ProcessManager pm)
     {
-        if (runningProcesses.contains(pm.getID()))
+        if (runningProcesses.containsKey(pm.getID()))
         {
             runningProcesses.remove(pm.getID());
             processHandlers.remove(pm.getID());
