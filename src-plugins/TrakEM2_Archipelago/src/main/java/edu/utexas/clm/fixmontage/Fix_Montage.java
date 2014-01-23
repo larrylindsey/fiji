@@ -186,7 +186,6 @@ public class Fix_Montage implements PlugIn
 
 
             ArrayList<Patch> rectifyRawPatches = new ArrayList<Patch>();
-            ArrayList<Area> exclusions = new ArrayList<Area>();
 
             Patch shopPatch = splitPatches(rectifyLayer, rectifyRawPatches);
             Patch alignmentPatch = getPatches(alignmentLayer).get(0);

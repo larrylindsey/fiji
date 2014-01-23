@@ -1,6 +1,7 @@
 package edu.utexas.clm.fixmontage;
 
 import ij.IJ;
+import ini.trakem2.display.Patch;
 import mpicbg.models.CoordinateTransform;
 import mpicbg.models.CoordinateTransformMesh;
 
@@ -9,14 +10,14 @@ import mpicbg.models.CoordinateTransformMesh;
  */
 public class InvertedCoordinateTransform implements CoordinateTransform
 {
-    private CoordinateTransformMesh ctm;
+    private final CoordinateTransformMesh ctm;
 
-    public InvertedCoordinateTransform(CoordinateTransformMesh inCtm)
+    public InvertedCoordinateTransform(final CoordinateTransformMesh inCtm)
     {
         ctm = inCtm;
     }
 
-    public float[] apply( float[] location )
+    public float[] apply(final float[] location)
     {
         try
         {
@@ -28,7 +29,7 @@ public class InvertedCoordinateTransform implements CoordinateTransform
         }
     }
 
-    public void applyInPlace( float[] location )
+    public void applyInPlace(final float[] location)
     {
         try
         {
@@ -38,5 +39,16 @@ public class InvertedCoordinateTransform implements CoordinateTransform
         {
             throw new RuntimeException(e);
         }
+    }
+
+    public static InvertedCoordinateTransform
+        invertedCoordinateTransform(final Patch p, final int meshResolution)
+    {
+        return new InvertedCoordinateTransform(
+                        new CoordinateTransformMesh(
+                                p.getFullCoordinateTransform(),
+                                meshResolution,
+                                p.getOWidth(),
+                                p.getOHeight()));
     }
 }
