@@ -46,19 +46,24 @@ public class FixMontageLayerResult implements Serializable
         profileMap.put(id, pts);
     }
 
-    public void apply(final AreaList areaList, final long id)
+    public boolean apply(final AreaList areaList, final long id)
     {
         final Area area = areaListMap.get(id);
-        if (area != null)
+        if (area != null && !area.isEmpty())
         {
             areaList.addArea(layerId, area);
+            return true;
+        }
+        else
+        {
+            return false;
         }
     }
 
-    public void apply(final Polyline polyline, final long id)
+    public boolean apply(final Polyline polyline, final long id)
     {
         final Area area = polylineMap.get(id);
-        if (area != null)
+        if (area != null && !area.isEmpty())
         {
             PathIterator pit = area.getPathIterator(null);
             final float[] coords = new float[6];
@@ -72,10 +77,15 @@ public class FixMontageLayerResult implements Serializable
                 }
                 pit.next();
             }
+            return true;
+        }
+        else
+        {
+            return false;
         }
     }
 
-    public void insertProfile(final Layer layer, final Profile template)
+    public boolean insertProfile(final Layer layer, final Profile template)
     {
         final float[][] pts = profileMap.get(template.getId());
         if (pts != null)
@@ -83,6 +93,13 @@ public class FixMontageLayerResult implements Serializable
             final double[][][] bez = new double[3][2][];
             final Profile profile;
             final long profileId = layer.getProject().getLoader().getNextId();
+
+            bez[0][0] = new double[pts.length];
+            bez[1][0] = new double[pts.length];
+            bez[2][0] = new double[pts.length];
+            bez[0][1] = new double[pts.length];
+            bez[1][1] = new double[pts.length];
+            bez[2][1] = new double[pts.length];
 
             for (int i = 0; i < pts.length; ++i)
             {
@@ -101,6 +118,12 @@ public class FixMontageLayerResult implements Serializable
                     new AffineTransform());
 
             layer.add(profile);
+
+            return true;
+        }
+        else
+        {
+            return false;
         }
     }
 

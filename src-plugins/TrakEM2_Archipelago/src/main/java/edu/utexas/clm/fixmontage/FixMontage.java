@@ -9,16 +9,12 @@ import ini.trakem2.display.Patch;
 import ini.trakem2.display.Polyline;
 import ini.trakem2.display.Profile;
 import ini.trakem2.utils.Utils;
-import mpicbg.models.CoordinateTransform;
-import mpicbg.models.IdentityModel;
 
-import java.awt.geom.AffineTransform;
-import java.awt.geom.Area;
+import java.io.File;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -29,7 +25,7 @@ import java.util.concurrent.Future;
  */
 public class FixMontage
 {
-    public static class NotReadyException extends Exception
+    public static class NotReadyException extends RuntimeException
     {
         public NotReadyException()
         {
@@ -48,9 +44,6 @@ public class FixMontage
     private Project montageProject;
 
     private final ExecutorService service;
-
-    ArrayList<AreaList> areaLists;
-    ArrayList<Polyline> polylines;
 
 
     public FixMontage()
@@ -101,6 +94,11 @@ public class FixMontage
         setReady();
     }
 
+    public String patchIdentifierFile(final Patch p)
+    {
+        File f = new File(p.getImageFilePath());
+        return f.getName();
+    }
 
     public void fixProjects() throws NotReadyException
     {
@@ -126,7 +124,8 @@ public class FixMontage
                 for (final Patch p : getPatches(rawLayer))
                 {
                     callable.addMontagePatch(p);
-                    rawPatchMap.put(p.getImageFilePath(), callable);
+                    rawPatchMap.put(patchIdentifierFile(p), callable);
+                    IJ.log("Mapped callable " + callable.getId() + " to " + p.getImageFilePath());
                 }
 
                 callables.add(callable);
@@ -139,8 +138,9 @@ public class FixMontage
                 FixMontageLayerCallable callable = null;
                 for (final Patch p : rectifyRawPatches)
                 {
-                    if ((callable = rawPatchMap.get(p.getImageFilePath())) != null)
+                    if ((callable = rawPatchMap.get(patchIdentifierFile(p))) != null)
                     {
+                        IJ.log("Found callable " + callable.getId() + " mapped to " + p.getImageFilePath());
                         break;
                     }
                 }
@@ -148,7 +148,8 @@ public class FixMontage
                 if (callable != null)
                 {
                     callable.setRectifyPatches(rectifyRawPatches, maxPatch);
-                    shopPatchMap.put(maxPatch.getImageFilePath(), callable);
+                    shopPatchMap.put(patchIdentifierFile(maxPatch), callable);
+                    IJ.log("Mapped callable " + callable.getId() + " to " + maxPatch.getImageFilePath());
                 }
             }
 
@@ -161,10 +162,14 @@ public class FixMontage
                 final FixMontageLayerCallable callable;
 
                 if (alignmentPatch != null &&
-                        ((callable = shopPatchMap.get(alignmentPatch.getImageFilePath())) != null))
+                        ((callable = shopPatchMap.get(patchIdentifierFile(alignmentPatch))) != null))
                 {
                     callable.setAlignmentPatch(alignmentPatch);
                     callable.setTracesPatch(getPatch(tracesLayer));
+                }
+                else if (alignmentPatch != null)
+                {
+                    IJ.log("Found no match for patch " + alignmentPatch.getImageFilePath());
                 }
             }
 
@@ -179,6 +184,7 @@ public class FixMontage
             }
             catch (Exception e)
             {
+                e.printStackTrace();
                 IJ.error("Error while processing: " + e);
             }
         }
@@ -192,6 +198,7 @@ public class FixMontage
 
         final HashMap<Long, AreaList> fixedAreaLists = new HashMap<Long, AreaList>();
         final HashMap<Long, Polyline> fixedPolylines = new HashMap<Long, Polyline>();
+        final HashSet<Long> idsToAdd = new HashSet<Long>();
 
         int count = 0;
 
@@ -201,7 +208,7 @@ public class FixMontage
         {
             final AreaList fixedAreaList = new AreaList(montageProject, areaList.getTitle(), 0, 0);
             fixedAreaList.setAlpha(areaList.getAlpha());
-            fixedAreaList.setColor(areaList.getColor());
+            //fixedAreaList.setColor(areaList.getColor());
             fixedAreaList.setVisible(areaList.isVisible());
 
             fixedAreaLists.put(areaList.getId(), fixedAreaList);
@@ -212,7 +219,7 @@ public class FixMontage
             final Polyline fixedPolyline = new Polyline(montageProject, polyline.getTitle());
             fixedPolyline.setAlpha(polyline.getAlpha());
             fixedPolyline.setVisible(polyline.isVisible());
-            fixedPolyline.setColor(polyline.getColor());
+            //fixedPolyline.setColor(polyline.getColor());
 
             fixedPolylines.put(polyline.getId(), fixedPolyline);
         }
@@ -220,43 +227,60 @@ public class FixMontage
         for (final Future<FixMontageLayerResult> future : futures)
         {
             final FixMontageLayerResult result = future.get();
-            final List<Profile> profiles =
-                    getProfiles(tracesProject.getRootLayerSet().getLayer(result.getTracesLayerId()));
-            final Layer montageLayer =
-                    montageProject.getRootLayerSet().getLayer(result.getMontageLayerId());
-
-            ++count;
-
-            IJ.log("Fixed objects in layer " + count + " of " + futures.size() +
-                    ", applying to new project");
-
-            for (final long key : fixedPolylines.keySet())
+            if (result != null)
             {
-                result.apply(fixedPolylines.get(key), key);
-            }
+                LayerSet rls = tracesProject.getRootLayerSet();
+                long id = result.getTracesLayerId();
+                Layer l = rls.getLayer(id);
+                final List<Profile> profiles = getProfiles(l);
+                final Layer montageLayer =
+                        montageProject.getRootLayerSet().getLayer(result.getMontageLayerId());
 
-            for (final long key : fixedAreaLists.keySet())
-            {
-                result.apply(fixedAreaLists.get(key), key);
-            }
+                ++count;
 
-            for (final Profile profile : profiles)
-            {
-                result.insertProfile(montageLayer, profile);
+                IJ.log("Fixed objects in layer " + count + " of " + futures.size() +
+                        ", applying to new project");
+
+                for (final long key : fixedPolylines.keySet())
+                {
+                    if (result.apply(fixedPolylines.get(key), key))
+                    {
+                        idsToAdd.add(fixedPolylines.get(key).getId());
+                    }
+                }
+
+                for (final long key : fixedAreaLists.keySet())
+                {
+                    if (result.apply(fixedAreaLists.get(key), key))
+                    {
+                        idsToAdd.add(fixedAreaLists.get(key).getId());
+                    }
+                }
+
+                for (final Profile profile : profiles)
+                {
+                    result.insertProfile(montageLayer, profile);
+                }
             }
         }
 
         IJ.log("Adding area lists to project...");
         for (final AreaList areaList : fixedAreaLists.values())
         {
-            montageProject.getRootLayerSet().add(areaList);
+            if (idsToAdd.contains(areaList.getId()))
+            {
+                montageProject.getRootLayerSet().add(areaList);
+            }
         }
 
         IJ.log("Adding Z-traces to project...");
 
         for (final Polyline polyline : fixedPolylines.values())
         {
-            montageProject.getRootLayerSet().add(polyline);
+            if (idsToAdd.contains(polyline.getId()))
+            {
+                montageProject.getRootLayerSet().add(polyline);
+            }
         }
 
         IJ.log("OK. I think we're done");

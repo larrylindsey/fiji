@@ -11,6 +11,7 @@ import ini.trakem2.utils.AreaUtils;
 import ini.trakem2.utils.M;
 import ini.trakem2.utils.Utils;
 import mpicbg.models.CoordinateTransformMesh;
+import org.jfree.data.general.Series;
 
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Area;
@@ -28,10 +29,29 @@ public class Fix_Montage implements PlugIn
 {
     public void run(String s)
     {
-        fixPhotoshopMontage("/nfs/data0/home/larry/Series/CLZBJ/CLZBJ current traces.xml",
+        /*fixPhotoshopMontage("/nfs/data0/home/larry/Series/CLZBJ/CLZBJ current traces.xml",
                 "/nfs/data0/home/larry/Series/CLZBJ/CLZBJ before retro elastic/CLZBJ elastic.xml",
                 "/nfs/data0/home/larry/Series/CLZBJ/CLZBJ square one/CLZBJ rectify.xml",
-                "/nfs/data0/home/larry/Series/CLZBJ/CLZBJ square one/CLZBJ raw.xml");
+                "/nfs/data0/home/larry/Series/CLZBJ/CLZBJ square one/CLZBJ raw one.xml");*/
+
+        final Project pTraces, pAlignment, pRectify, pMontage;
+
+        pTraces = Project.openFSProject(
+                "/nfs/data0/home/larry/Series/CLZBJ/CLZBJ current traces.xml");
+        pAlignment = Project.openFSProject(
+                "/nfs/data0/home/larry/Series/CLZBJ/CLZBJ before retro elastic/CLZBJ elastic.xml");
+        pRectify = Project.openFSProject(
+                "/nfs/data0/home/larry/Series/CLZBJ/CLZBJ square one/CLZBJ rectify.xml");
+        pMontage = Project.openFSProject(
+                "/nfs/data0/home/larry/Series/CLZBJ/CLZBJ square one/CLZBJ raw one.xml");
+
+        final FixMontage fix = new FixMontage();
+        fix.setAlignmentProject(pAlignment);
+        fix.setTracesProject(pTraces);
+        fix.setRectifyProject(pRectify);
+        fix.setMontageProject(pMontage);
+
+        fix.fixProjects();
     }
 
 
