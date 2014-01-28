@@ -1,5 +1,6 @@
 package edu.utexas.clm.fixmontage;
 
+import ij.IJ;
 import ini.trakem2.display.AreaList;
 import ini.trakem2.display.Displayable;
 import ini.trakem2.display.Layer;
@@ -20,6 +21,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.concurrent.Callable;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  *
@@ -30,8 +32,11 @@ public class FixMontageLayerCallable implements Callable<FixMontageLayerResult>,
     private Patch tracesPatch, alignmentPatch, rectifyShopPatch;
     private final ArrayList<Patch> rectifyRawPatches, montagePatches;
     private FixMontageLayerResult result;
+    private final int id;
     private final int meshResolution;
     private final float patchScale;
+
+    private final static AtomicInteger nextId = new AtomicInteger(0);
 
     public static class DifferentPatchesException extends Exception
     {
@@ -67,12 +72,15 @@ public class FixMontageLayerCallable implements Callable<FixMontageLayerResult>,
         alignmentPatch = null;
         rectifyShopPatch = null;
         result = null;
+        id = nextId.getAndIncrement();
     }
 
     public FixMontageLayerResult call() throws Exception
     {
+        IJ.log("" + id + " called");
         if (check())
         {
+            IJ.log("" + id + " checked ok");
             final PatchPathComparator comp = new PatchPathComparator();
             Collections.sort(rectifyRawPatches, comp);
             Collections.sort(montagePatches, comp);
@@ -93,8 +101,34 @@ public class FixMontageLayerCallable implements Callable<FixMontageLayerResult>,
             fixZDisplayables();
             fixProfiles();
         }
+        else
+        {
+            IJ.log("" + id + " failed check");
+
+            if (tracesPatch == null)
+            {
+                IJ.log("traces patch is null");
+            }
+            if (alignmentPatch == null)
+            {
+                IJ.log("alignment patch is null");
+            }
+            if (rectifyShopPatch == null)
+            {
+                IJ.log("rectifyShopPatch is null");
+            }
+            IJ.log("rectifyRawPatches size: " + rectifyRawPatches.size());
+            IJ.log("montagePatches size: " + montagePatches.size());
+
+
+        }
 
         return result;
+    }
+
+    public int getId()
+    {
+        return id;
     }
 
     public boolean check()
@@ -191,6 +225,7 @@ public class FixMontageLayerCallable implements Callable<FixMontageLayerResult>,
     private void fixAreaList(final AreaList areaList) throws Exception
     {
         final Area area = areaList.getArea(tracesPatch.getLayer());
+        IJ.log("Fix area list called on " + areaList.getTitle());
         if (area != null)
         {
             final long id = areaList.getId();
@@ -200,7 +235,17 @@ public class FixMontageLayerCallable implements Callable<FixMontageLayerResult>,
             traceArea.transform(areaList.getAffineTransform());
             montageArea = fixArea(traceArea, false);
 
-            result.setArea(areaList.getId(), montageArea);
+            Fix_Montage.printArea(areaList.getTitle() + "_trace",
+                    traceArea, areaList.getAffineTransformCopy());
+            Fix_Montage.printArea(areaList.getTitle() + "_montage",
+                    montageArea, new AffineTransform());
+
+
+            result.setArea(id, montageArea);
+        }
+        else
+        {
+            IJ.log("area was null");
         }
     }
 
@@ -216,15 +261,21 @@ public class FixMontageLayerCallable implements Callable<FixMontageLayerResult>,
 
     private void fixZDisplayables() throws Exception
     {
+        int count = 0;
         for (ZDisplayable zd : tracesPatch.getProject().getRootLayerSet().getZDisplayables())
         {
+            if (count < 10)
+            {
+            IJ.log("Fixing zd " + zd.getId());
             if (zd instanceof AreaList)
             {
+                ++count;
                 fixAreaList((AreaList)zd);
             }
             else if (zd instanceof Polyline)
             {
                 fixPolyline((Polyline)zd);
+            }
             }
         }
     }
