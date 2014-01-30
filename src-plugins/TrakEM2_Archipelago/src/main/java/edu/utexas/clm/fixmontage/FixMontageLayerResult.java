@@ -19,14 +19,17 @@ import java.util.Map;
 public class FixMontageLayerResult implements Serializable
 {
     private final Map<Long, Area> areaListMap, polylineMap;
-    private final Map<Long, float[][]> profileMap;
+    private final Map<Long, float[][]> profileMapL, profileMapC, profileMapR;
     private final long layerId, traceLayerId;
 
     public FixMontageLayerResult(long montageLayerId, long traceLayerId)
     {
         areaListMap = Collections.synchronizedMap(new HashMap<Long, Area>());
         polylineMap = Collections.synchronizedMap(new HashMap<Long, Area>());
-        profileMap = Collections.synchronizedMap(new HashMap<Long, float[][]>());
+        profileMapC = Collections.synchronizedMap(new HashMap<Long, float[][]>());
+        profileMapL = Collections.synchronizedMap(new HashMap<Long, float[][]>());
+        profileMapR = Collections.synchronizedMap(new HashMap<Long, float[][]>());
+
         layerId = montageLayerId;
         this.traceLayerId = traceLayerId;
     }
@@ -41,9 +44,14 @@ public class FixMontageLayerResult implements Serializable
         polylineMap.put(id, area);
     }
 
-    public void setProfile(final long id, final float[][] pts)
+    public void setProfile(final long id,
+                           final float[][] lpts,
+                           final float[][] cpts,
+                           final float[][] rpts)
     {
-        profileMap.put(id, pts);
+        profileMapL.put(id, lpts);
+        profileMapC.put(id, cpts);
+        profileMapR.put(id, rpts);
     }
 
     public boolean apply(final AreaList areaList, final long id)
@@ -87,29 +95,32 @@ public class FixMontageLayerResult implements Serializable
 
     public boolean insertProfile(final Layer layer, final Profile template)
     {
-        final float[][] pts = profileMap.get(template.getId());
-        if (pts != null)
+        final float[][] lpts = profileMapL.get(template.getId());
+        final float[][] cpts = profileMapC.get(template.getId());
+        final float[][] rpts = profileMapR.get(template.getId());
+
+        if (lpts != null)
         {
             final double[][][] bez = new double[3][2][];
             final Profile profile;
             final long profileId = layer.getProject().getLoader().getNextId();
 
-            bez[0][0] = new double[pts.length];
-            bez[1][0] = new double[pts.length];
-            bez[2][0] = new double[pts.length];
-            bez[0][1] = new double[pts.length];
-            bez[1][1] = new double[pts.length];
-            bez[2][1] = new double[pts.length];
+            bez[0][0] = new double[lpts.length];
+            bez[1][0] = new double[rpts.length];
+            bez[2][0] = new double[cpts.length];
+            bez[0][1] = new double[lpts.length];
+            bez[1][1] = new double[rpts.length];
+            bez[2][1] = new double[cpts.length];
 
-            for (int i = 0; i < pts.length; ++i)
+            for (int i = 0; i < lpts.length; ++i)
             {
-                bez[0][0][i] = pts[i][0];
-                bez[1][0][i] = pts[i][0];
-                bez[2][0][i] = pts[i][0];
+                bez[0][0][i] = lpts[i][0];
+                bez[1][0][i] = cpts[i][0];
+                bez[2][0][i] = rpts[i][0];
 
-                bez[0][1][i] = pts[i][1];
-                bez[1][1][i] = pts[i][1];
-                bez[2][1][i] = pts[i][1];
+                bez[0][1][i] = lpts[i][1];
+                bez[1][1][i] = cpts[i][1];
+                bez[2][1][i] = rpts[i][1];
             }
 
             profile = new Profile(layer.getProject(), profileId,
