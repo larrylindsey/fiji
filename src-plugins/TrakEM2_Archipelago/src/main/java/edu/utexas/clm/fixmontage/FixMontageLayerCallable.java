@@ -77,10 +77,8 @@ public class FixMontageLayerCallable implements Callable<FixMontageLayerResult>,
 
     public FixMontageLayerResult call() throws Exception
     {
-        IJ.log("" + id + " called");
         if (check())
         {
-            IJ.log("" + id + " checked ok");
             final PatchPathComparator comp = new PatchPathComparator();
             Collections.sort(rectifyRawPatches, comp);
             Collections.sort(montagePatches, comp);
@@ -103,24 +101,31 @@ public class FixMontageLayerCallable implements Callable<FixMontageLayerResult>,
         }
         else
         {
-            IJ.log("" + id + " failed check");
+            IJ.log("Callable " + id + " failed check. Not necessarily a bad thing, " +
+                    "just means we don't have the full transform chain.");
+            IJ.log("traces patch is " + tracesPatch);
+            IJ.log("alignment patch is " + alignmentPatch);
+            IJ.log("rectify shop patch is " + rectifyShopPatch);
+            IJ.log("rectify raw patch count: " + rectifyRawPatches.size());
+            IJ.log("montage patch count: " + montagePatches.size());
 
-            if (tracesPatch == null)
+            if (rectifyRawPatches.size() > 0)
             {
-                IJ.log("traces patch is null");
+                IJ.log("Rectify raw patches:");
+                for (Patch p : rectifyRawPatches)
+                {
+                    IJ.log("\tRectify raw patch is " + p);
+                }
             }
-            if (alignmentPatch == null)
-            {
-                IJ.log("alignment patch is null");
-            }
-            if (rectifyShopPatch == null)
-            {
-                IJ.log("rectifyShopPatch is null");
-            }
-            IJ.log("rectifyRawPatches size: " + rectifyRawPatches.size());
-            IJ.log("montagePatches size: " + montagePatches.size());
 
-
+            if (montagePatches.size() > 0)
+            {
+                IJ.log("Montage patches:");
+                for (Patch p : montagePatches)
+                {
+                    IJ.log("\tMontage raw patch is " + p);
+                }
+            }
         }
 
         return result;
@@ -225,7 +230,6 @@ public class FixMontageLayerCallable implements Callable<FixMontageLayerResult>,
     private void fixAreaList(final AreaList areaList) throws Exception
     {
         final Area area = areaList.getArea(tracesPatch.getLayer());
-        IJ.log("Fix area list called on " + areaList.getTitle());
         if (area != null)
         {
             final long id = areaList.getId();
@@ -235,17 +239,7 @@ public class FixMontageLayerCallable implements Callable<FixMontageLayerResult>,
             traceArea.transform(areaList.getAffineTransform());
             montageArea = fixArea(traceArea, false);
 
-            Fix_Montage.printArea(areaList.getTitle() + "_trace",
-                    traceArea, areaList.getAffineTransformCopy());
-            Fix_Montage.printArea(areaList.getTitle() + "_montage",
-                    montageArea, new AffineTransform());
-
-
             result.setArea(id, montageArea);
-        }
-        else
-        {
-            IJ.log("area was null");
         }
     }
 
@@ -262,20 +256,17 @@ public class FixMontageLayerCallable implements Callable<FixMontageLayerResult>,
     private void fixZDisplayables() throws Exception
     {
         int count = 0;
+        int totalCount = tracesPatch.getProject().getRootLayerSet().getZDisplayables().size();
         for (ZDisplayable zd : tracesPatch.getProject().getRootLayerSet().getZDisplayables())
         {
-            if (count < 10)
-            {
-            IJ.log("Fixing zd " + zd.getId());
+            IJ.log("" + id + ": Z Displayables (Closed contours and Z traces): " + (++count) + " / " + totalCount);
             if (zd instanceof AreaList)
             {
-                ++count;
                 fixAreaList((AreaList)zd);
             }
             else if (zd instanceof Polyline)
             {
                 fixPolyline((Polyline)zd);
-            }
             }
         }
     }
@@ -313,66 +304,87 @@ public class FixMontageLayerCallable implements Callable<FixMontageLayerResult>,
         }
     }
 
+    private float[][] getTransformedPointArray(final double[] x, final double[] y,
+                                               final AffineTransform at)
+    {
+        final Area exclusion = new Area();
+
+
+        // Pts for affine transform
+        final double[] atpts = new double[x.length * 2];
+        // Pts for coordinate transform
+        final float[][] ctpts = new float[x.length][2];
+        // Patch index array
+        final int[] ip = new int[x.length];
+
+        for (int i = 0; i < x.length; ++i)
+        {
+            ip[i] = -1;
+            atpts[2 * i] = x[i];
+            atpts[2 * i + 1] = y[i];
+        }
+
+        at.transform(atpts, 0, atpts, 0, atpts.length / 2);
+
+        for (int i = 0; i < atpts.length; i+=2)
+        {
+            ctpts[i/2][0] = (float)atpts[i];
+            ctpts[i/2][1] = (float)atpts[i + 1];
+        }
+
+        // Transform area from traces coordinates to alignment coordinates
+        if (alignmentPatch != tracesPatch)
+        {
+            applyTransform(getICT(tracesPatch), ctpts);
+        }
+
+        applyTransform(getICT(alignmentPatch), ctpts);
+
+        applyTransform(rectifyShopPatch.getFullCoordinateTransform(), ctpts);
+
+        for (int i = 0; i < rectifyRawPatches.size(); ++i)
+        {
+            final Patch rectifyPatch = rectifyRawPatches.get(i);
+            final Patch montagePatch = montagePatches.get(i);
+            final Area roi = getShrunkArea(rectifyPatch);
+
+            roi.subtract(exclusion);
+            exclusion.add(roi);
+
+            applyTransform(getICT(rectifyPatch), ctpts, ip, roi, i);
+
+            applyTransform(montagePatch.getFullCoordinateTransform(), ctpts, ip, i);
+        }
+
+        return ctpts;
+    }
 
     private void fixProfiles()
     {
+        int count = 0;
+        int totalCount = tracesPatch.getLayer().getDisplayables().size();
         for (final Displayable d : tracesPatch.getLayer().getDisplayables())
         {
+            IJ.log("" + id + ": Profiles (Open contours): " + (++count) + " / " + totalCount);
             if (d instanceof Profile)
             {
-                final Area exclusion = new Area();
                 final Profile profile = (Profile)d;
                 final AffineTransform at = profile.getAffineTransform();
                 final double[][][] bz = profile.getBezierArrays();
-                final double[] x = bz[1][0];
-                final double[] y = bz[1][1];
-                // Pts for affine transform
-                final double[] atpts = new double[x.length * 2];
-                // Pts for coordinate transform
-                final float[][] ctpts = new float[x.length][2];
-                // Patch index array
-                final int[] ip = new int[x.length];
 
-                for (int i = 0; i < x.length; ++i)
-                {
-                    ip[i] = -1;
-                    atpts[2 * i] = x[i];
-                    atpts[2 * i + 1] = y[i];
-                }
+                final double[] xl = bz[0][0];
+                final double[] yl = bz[0][1];
 
-                at.transform(atpts, 0, atpts, 0, atpts.length / 2);
+                final double[] xc = bz[1][0];
+                final double[] yc = bz[1][1];
 
-                for (int i = 0; i < atpts.length; i+=2)
-                {
-                    ctpts[i/2][0] = (float)atpts[i];
-                    ctpts[i/2][1] = (float)atpts[i + 1];
-                }
+                final double[] xr = bz[2][0];
+                final double[] yr = bz[2][1];
 
-                // Transform area from traces coordinates to alignment coordinates
-                if (alignmentPatch != tracesPatch)
-                {
-                    applyTransform(getICT(tracesPatch), ctpts);
-                }
-
-                applyTransform(getICT(alignmentPatch), ctpts);
-
-                applyTransform(rectifyShopPatch.getFullCoordinateTransform(), ctpts);
-
-                for (int i = 0; i < rectifyRawPatches.size(); ++i)
-                {
-                    final Patch rectifyPatch = rectifyRawPatches.get(i);
-                    final Patch montagePatch = montagePatches.get(i);
-                    final Area roi = getShrunkArea(rectifyPatch);
-
-                    roi.subtract(exclusion);
-                    exclusion.add(roi);
-
-                    applyTransform(getICT(rectifyPatch), ctpts, ip, roi, i);
-
-                    applyTransform(montagePatch.getFullCoordinateTransform(), ctpts, ip, i);
-                }
-
-                result.setProfile(profile.getId(), ctpts);
+                result.setProfile(profile.getId(),
+                        getTransformedPointArray(xl, yl, at),
+                        getTransformedPointArray(xc, yc, at),
+                        getTransformedPointArray(xr, yr, at));
             }
         }
     }

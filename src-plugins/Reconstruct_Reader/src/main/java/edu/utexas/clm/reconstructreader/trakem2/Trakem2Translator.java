@@ -202,7 +202,8 @@ public class Trakem2Translator implements Runnable
                 final Area area = al.getArea(rootLayerSet.getLayer(l));
                 if (area != null && !area.isEmpty())
                 {
-                    final Thing thing = project.findProjectThing(al).getParent();
+                    final String name = project.findProjectThing(al) == null ? al.getTitle() :
+                        project.findProjectThing(al).getParent().getTitle();
                     final PathIterator pathIter = area.getPathIterator(al.getAffineTransform());
                     final float[] rgb = new float[3];                    
 
@@ -212,17 +213,20 @@ public class Trakem2Translator implements Runnable
                     {                        
                         ArrayList<float[]> path = getNextPath(pathIter);
                         
-                        writePathXML(writer, al, thing, path, true, h);
+                        writePathXML(writer, al, name, path, true, h);
                     }
                 }
             }
 
             //Push all of the open Contours
             
-            for (ProfileData profileData : profileMap.get(rootLayerSet.getLayer(l).getId()))
+            for (final ProfileData profileData : profileMap.get(rootLayerSet.getLayer(l).getId()))
             {
-                ArrayList<float[]> path = getPathFromProfile(profileData.profile);
-                writePathXML(writer, profileData.profile, profileData.parent.getParent(), path, false, h);
+                final ArrayList<float[]> path = getPathFromProfile(profileData.profile);
+                final String name = profileData.parent.getParent() ==
+                        null ? profileData.profile.getTitle() :
+                        profileData.parent.getParent().getTitle();
+                writePathXML(writer, profileData.profile, name, path, false, h);
             }
             
             
@@ -235,11 +239,10 @@ public class Trakem2Translator implements Runnable
         
     }
     
-    private void writePathXML(final Writer writer, final Displayable d, final Thing t,
+    private void writePathXML(final Writer writer, final Displayable d, final String name,
                               final List<float[]> path, final boolean isClosed, final float h)
             throws IOException
     {
-        String alname = t.getTitle();
         float[] rgb = new float[3];
         boolean isVisible = d.isVisible();
         
@@ -248,7 +251,7 @@ public class Trakem2Translator implements Runnable
         if (!path.isEmpty())
         {
             String tab = "";
-            writer.write("<Contour name=\"" + alname + "\" hidden=\"" + !isVisible);
+            writer.write("<Contour name=\"" + name + "\" hidden=\"" + !isVisible);
             writer.write("\" closed=\"" + isClosed + "\" simplified=\"true\" ");
             writer.write("border=\"" + rgb[0] + " " + rgb[1] + " " + rgb[2] + "\" ");
             writer.write("fill=\"" + rgb[0] + " " + rgb[1] + " " + rgb[2] + "\" ");

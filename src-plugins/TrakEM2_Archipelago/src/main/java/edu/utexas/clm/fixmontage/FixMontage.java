@@ -8,6 +8,7 @@ import ini.trakem2.display.LayerSet;
 import ini.trakem2.display.Patch;
 import ini.trakem2.display.Polyline;
 import ini.trakem2.display.Profile;
+import ini.trakem2.tree.ProjectThing;
 import ini.trakem2.utils.Utils;
 
 import java.io.File;
@@ -167,10 +168,6 @@ public class FixMontage
                     callable.setAlignmentPatch(alignmentPatch);
                     callable.setTracesPatch(getPatch(tracesLayer));
                 }
-                else if (alignmentPatch != null)
-                {
-                    IJ.log("Found no match for patch " + alignmentPatch.getImageFilePath());
-                }
             }
 
             for (final FixMontageLayerCallable callable : callables)
@@ -196,36 +193,49 @@ public class FixMontage
         final List<AreaList> origAreaLists = getAreaLists(tracesProject);
         final List<Polyline> origPolylines = getPolylines(tracesProject);
 
-        final HashMap<Long, AreaList> fixedAreaLists = new HashMap<Long, AreaList>();
-        final HashMap<Long, Polyline> fixedPolylines = new HashMap<Long, Polyline>();
-        final HashSet<Long> idsToAdd = new HashSet<Long>();
+        final HashMap<Long, AreaList> origIdFixedAreaListMap = new HashMap<Long, AreaList>();
+        final HashMap<Long, Polyline> origIdFixedPolylineMap = new HashMap<Long, Polyline>();
+
+        final HashMap<Long, AreaList> fixedIdOrigAreaListMap = new HashMap<Long, AreaList>();
+        final HashMap<Long, Polyline> fixedIdOrigPolylineMap = new HashMap<Long, Polyline>();
+
+        final HashSet<Long> fixedIdsToAdd = new HashSet<Long>();
+
+        final ProjectThing reconstructThing = montageProject.getRootProjectThing().createChild("reconstruct");
+
+        montageProject.getRootProjectThing().addChild(reconstructThing.createChild("reconstruct"));
+
 
         int count = 0;
 
         IJ.log("Creating new objects...");
 
-        for (final AreaList areaList : origAreaLists)
+        for (final AreaList origAreaList : origAreaLists)
         {
-            final AreaList fixedAreaList = new AreaList(montageProject, areaList.getTitle(), 0, 0);
-            fixedAreaList.setAlpha(areaList.getAlpha());
+            final AreaList fixedAreaList = new AreaList(montageProject,
+                    origAreaList.getTitle(), 0, 0);
+            //fixedAreaList.setAlpha(origAreaList.getAlpha());
             //fixedAreaList.setColor(areaList.getColor());
-            fixedAreaList.setVisible(areaList.isVisible());
+            fixedAreaList.setVisible(origAreaList.isVisible());
 
-            fixedAreaLists.put(areaList.getId(), fixedAreaList);
+            origIdFixedAreaListMap.put(origAreaList.getId(), fixedAreaList);
+            fixedIdOrigAreaListMap.put(fixedAreaList.getId(), origAreaList);
         }
 
-        for (final Polyline polyline : origPolylines)
+        for (final Polyline origPolyline : origPolylines)
         {
-            final Polyline fixedPolyline = new Polyline(montageProject, polyline.getTitle());
-            fixedPolyline.setAlpha(polyline.getAlpha());
-            fixedPolyline.setVisible(polyline.isVisible());
+            final Polyline fixedPolyline = new Polyline(montageProject, origPolyline.getTitle());
+            fixedPolyline.setAlpha(origPolyline.getAlpha());
+            //fixedPolyline.setVisible(origPolyline.isVisible());
             //fixedPolyline.setColor(polyline.getColor());
 
-            fixedPolylines.put(polyline.getId(), fixedPolyline);
+            origIdFixedPolylineMap.put(origPolyline.getId(), fixedPolyline);
+            fixedIdOrigPolylineMap.put(fixedPolyline.getId(), origPolyline);
         }
 
         for (final Future<FixMontageLayerResult> future : futures)
         {
+            IJ.log("Waiting for results over Layer " + (count + 1) + " of " + futures.size());
             final FixMontageLayerResult result = future.get();
             if (result != null)
             {
@@ -241,19 +251,19 @@ public class FixMontage
                 IJ.log("Fixed objects in layer " + count + " of " + futures.size() +
                         ", applying to new project");
 
-                for (final long key : fixedPolylines.keySet())
+                for (final long key : origIdFixedPolylineMap.keySet())
                 {
-                    if (result.apply(fixedPolylines.get(key), key))
+                    if (result.apply(origIdFixedPolylineMap.get(key), key))
                     {
-                        idsToAdd.add(fixedPolylines.get(key).getId());
+                        fixedIdsToAdd.add(origIdFixedPolylineMap.get(key).getId());
                     }
                 }
 
-                for (final long key : fixedAreaLists.keySet())
+                for (final long key : origIdFixedAreaListMap.keySet())
                 {
-                    if (result.apply(fixedAreaLists.get(key), key))
+                    if (result.apply(origIdFixedAreaListMap.get(key), key))
                     {
-                        idsToAdd.add(fixedAreaLists.get(key).getId());
+                        fixedIdsToAdd.add(origIdFixedAreaListMap.get(key).getId());
                     }
                 }
 
@@ -265,21 +275,43 @@ public class FixMontage
         }
 
         IJ.log("Adding area lists to project...");
-        for (final AreaList areaList : fixedAreaLists.values())
+        for (final long origId : origIdFixedAreaListMap.keySet())
         {
-            if (idsToAdd.contains(areaList.getId()))
+            final AreaList montageAreaList = origIdFixedAreaListMap.get(origId);
+            if (fixedIdsToAdd.contains(montageAreaList.getId()))
             {
-                montageProject.getRootLayerSet().add(areaList);
+                final AreaList origAreaList =
+                        fixedIdOrigAreaListMap.get(montageAreaList.getId());
+                final String name =
+                        tracesProject.findProjectThing(origAreaList).getParent().getTitle();
+
+                montageAreaList.setTitle(name);
+                montageProject.getRootLayerSet().add(montageAreaList);
+
+                montageAreaList.setColor(origAreaList.getColor());
+                montageAreaList.setAlpha(origAreaList.getAlpha());
+                montageAreaList.setVisible(origAreaList.isVisible());
             }
+
         }
 
         IJ.log("Adding Z-traces to project...");
 
-        for (final Polyline polyline : fixedPolylines.values())
+        for (final long origId : origIdFixedPolylineMap.keySet())
         {
-            if (idsToAdd.contains(polyline.getId()))
+            final Polyline montagePolyline = origIdFixedPolylineMap.get(origId);
+            if (fixedIdsToAdd.contains(montagePolyline.getId()))
             {
-                montageProject.getRootLayerSet().add(polyline);
+                final Polyline origPolyline =
+                        fixedIdOrigPolylineMap.get(montagePolyline.getId());
+                final String name =
+                        tracesProject.findProjectThing(origPolyline).getParent().getTitle();
+
+                montageProject.getRootLayerSet().add(montagePolyline);
+
+                montagePolyline.setColor(origPolyline.getColor());
+                montagePolyline.setAlpha(origPolyline.getAlpha());
+                montagePolyline.setVisible(origPolyline.isVisible());
             }
         }
 
