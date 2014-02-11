@@ -95,7 +95,7 @@ public class FixMontage
         setReady();
     }
 
-    public String patchIdentifierFile(final Patch p)
+    public static String patchIdentifierFile(final Patch p)
     {
         File f = new File(p.getImageFilePath());
         return f.getName();

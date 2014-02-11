@@ -87,7 +87,8 @@ public class FixMontageLayerCallable implements Callable<FixMontageLayerResult>,
             {
                 final Patch rectifyPatch = rectifyRawPatches.get(i);
                 final Patch montagePatch = montagePatches.get(i);
-                if (!rectifyPatch.getImageFilePath().equals(montagePatch.getImageFilePath()))
+                if (!FixMontage.patchIdentifierFile(rectifyPatch).equals(
+                        FixMontage.patchIdentifierFile(montagePatch)))
                 {
                     throw new DifferentPatchesException(rectifyPatch, montagePatch);
                 }
