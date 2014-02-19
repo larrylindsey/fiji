@@ -1,5 +1,9 @@
 package edu.utexas.clm.fixmontage;
 
+import edu.utexas.clm.archipelago.Cluster;
+import edu.utexas.clm.archipelago.ijsupport.bottle.AreaBottler;
+import edu.utexas.clm.archipelago.ijsupport.bottle.LayerBottler;
+import edu.utexas.clm.archipelago.ijsupport.bottle.PatchBottler;
 import ij.IJ;
 import ini.trakem2.Project;
 import ini.trakem2.display.AreaList;
@@ -55,8 +59,21 @@ public class FixMontage
         alignmentProject = null;
         rectifyProject = null;
         montageProject = null;
-        service = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 
+
+        if (Cluster.activeCluster())
+        {
+            IJ.log("Using cluster");
+            service = Cluster.getCluster().getService(1);
+            Cluster.getCluster().addBottler(new PatchBottler());
+            Cluster.getCluster().addBottler(new LayerBottler());
+            Cluster.getCluster().addBottler(new AreaBottler());
+        }
+        else
+        {
+            IJ.log("Using local thread pool");
+            service = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+        }
     }
 
     private void setReady()
@@ -200,11 +217,6 @@ public class FixMontage
         final HashMap<Long, Polyline> fixedIdOrigPolylineMap = new HashMap<Long, Polyline>();
 
         final HashSet<Long> fixedIdsToAdd = new HashSet<Long>();
-
-        final ProjectThing reconstructThing = montageProject.getRootProjectThing().createChild("reconstruct");
-
-        montageProject.getRootProjectThing().addChild(reconstructThing.createChild("reconstruct"));
-
 
         int count = 0;
 

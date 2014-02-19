@@ -2,6 +2,7 @@ package edu.utexas.clm.fixmontage;
 
 import ij.IJ;
 import ij.ImageJ;
+import ij.Prefs;
 import ij.gui.GenericDialog;
 import ij.io.OpenDialog;
 import ij.plugin.PlugIn;
@@ -18,6 +19,13 @@ import java.io.File;
  */
 public class Fix_Montage implements PlugIn, ActionListener
 {
+    final static String PREF_ROOT = "FixMontage";
+    final static String[] PREF_KEYS = {
+            PREF_ROOT + ".traces",
+            PREF_ROOT + ".alignment",
+            PREF_ROOT + ".rectification",
+            PREF_ROOT + ".montage"};
+
     final Button bTraces, bAlignment, bRectify, bMontage;
     final Button[] buttonArray;
     final GenericDialog gd;
@@ -43,13 +51,13 @@ public class Fix_Montage implements PlugIn, ActionListener
         panelRectify.add(bRectify);
         panelMontage.add(bMontage);
 
-        gd.addStringField("Traces Project", "", 128);
+        gd.addStringField("Traces Project", Prefs.get(PREF_KEYS[0], ""), 128);
         gd.addPanel(panelTraces);
-        gd.addStringField("Alignment Project", "", 128);
+        gd.addStringField("Alignment Project", Prefs.get(PREF_KEYS[1], ""), 128);
         gd.addPanel(panelAlignment);
-        gd.addStringField("Rectification Project", "", 128);
+        gd.addStringField("Rectification Project", Prefs.get(PREF_KEYS[2], ""), 128);
         gd.addPanel(panelRectify);
-        gd.addStringField("Final Montage Project", "", 128);
+        gd.addStringField("Final Montage Project", Prefs.get(PREF_KEYS[3], ""), 128);
         gd.addPanel(panelMontage);
 
         for (final Button b : buttonArray)
@@ -81,17 +89,25 @@ public class Fix_Montage implements PlugIn, ActionListener
         {
             paths[i] = gd.getNextString();
 
-            if (!check(paths[i]))
+            if (check(paths[i]))
+            {
+                Prefs.set(PREF_KEYS[i], paths[i]);
+                Prefs.savePreferences();
+            }
+            else
             {
                 IJ.error("Could not find file: " + paths[i]);
                 ok = false;
             }
         }
 
+        Prefs.savePreferences();
+
         if (!ok)
         {
             return;
         }
+
 
 
         pTraces = Project.openFSProject(paths[0]);
