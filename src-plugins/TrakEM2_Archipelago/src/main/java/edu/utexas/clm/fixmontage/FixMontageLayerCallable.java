@@ -58,7 +58,7 @@ public class FixMontageLayerCallable implements Callable<FixMontageLayerResult>,
 
     public FixMontageLayerCallable()
     {
-        this(32, .98f);
+        this(16, .98f);
     }
 
     public FixMontageLayerCallable(final int meshResolution, final float patchScale)
@@ -198,7 +198,7 @@ public class FixMontageLayerCallable implements Callable<FixMontageLayerResult>,
 
         // Transform area from image coordinates to rectify coordinates
         M.apply(rectifyShopPatch.getFullCoordinateTransform(),
-                rectifyShopPatch.getArea(), traceArea);
+                AreaUtils.infiniteArea(), traceArea);
 
         for (int i = 0; i < rectifyRawPatches.size(); ++i)
         {
@@ -261,13 +261,16 @@ public class FixMontageLayerCallable implements Callable<FixMontageLayerResult>,
         for (ZDisplayable zd : tracesPatch.getProject().getRootLayerSet().getZDisplayables())
         {
             IJ.log("" + id + ": Z Displayables (Closed contours and Z traces): " + (++count) + " / " + totalCount);
-            if (zd instanceof AreaList)
+            if (zd.getLayerIds().contains(tracesPatch.getLayer().getId()))
             {
-                fixAreaList((AreaList)zd);
-            }
-            else if (zd instanceof Polyline)
-            {
-                fixPolyline((Polyline)zd);
+                if (zd instanceof AreaList)
+                {
+                    fixAreaList((AreaList)zd);
+                }
+                else if (zd instanceof Polyline)
+                {
+                    fixPolyline((Polyline)zd);
+                }
             }
         }
     }
