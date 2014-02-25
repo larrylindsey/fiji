@@ -32,12 +32,10 @@ public class Trakem2Translator implements Runnable
     private class ProfileData
     {
         public final Profile profile;
-        public final ProjectThing parent;
-        
-        public ProfileData(Profile profileIn, ProjectThing parentIn)                
+
+        public ProfileData(Profile profileIn)
         {
             profile = profileIn;
-            parent = parentIn;
         }
     }
     
@@ -127,28 +125,25 @@ public class Trakem2Translator implements Runnable
     {
         final HashMap<Long, ArrayList<ProfileData>> map = new HashMap<Long, ArrayList<ProfileData>>();
         
-        for (Layer layer : rootLayerSet.getLayers())
+        for (final Layer layer : rootLayerSet.getLayers())
         {
             map.put(layer.getId(), new ArrayList<ProfileData>());
         }
-        
-        for (final ProjectThing rt : reconstructThings)
+
+        for (final Layer layer : rootLayerSet.getLayers())
         {
-            List<ProjectThing> profileLists = rt.findChildren("profile_list", null, false);
 
-            for (ProjectThing pList : profileLists)
+            for (final Displayable d : layer.getDisplayables())
             {
-                List<Profile> profiles = pList.findChildrenOfType(Profile.class);
-
-                for (Profile p : profiles)
+                if (d instanceof Profile)
                 {
-                    long id = p.getLayer().getId(); 
-                    map.get(id).add(new ProfileData(p, pList));
-
+                    final Profile p = (Profile)d;
+                    long id = p.getLayer().getId();
+                    map.get(id).add(new ProfileData(p));
                 }
+
             }
         }
-        
         return map;
     }
     
@@ -223,9 +218,19 @@ public class Trakem2Translator implements Runnable
             for (final ProfileData profileData : profileMap.get(rootLayerSet.getLayer(l).getId()))
             {
                 final ArrayList<float[]> path = getPathFromProfile(profileData.profile);
-                final String name = profileData.parent.getParent() ==
-                        null ? profileData.profile.getTitle() :
-                        profileData.parent.getParent().getTitle();
+                final String name;
+                final Thing thing = project.findProjectThing(profileData.profile);
+
+                if (thing == null)
+                {
+                    name = profileData.profile.getTitle();
+                }
+                else
+                {
+                    name = thing.getParent() == null ? thing.getTitle() :
+                            thing.getParent().getTitle();
+                }
+
                 writePathXML(writer, profileData.profile, name, path, false, h);
             }
             
