@@ -1,5 +1,6 @@
 package edu.utexas.clm.fixmontage;
 
+import ij.IJ;
 import ini.trakem2.display.AreaList;
 import ini.trakem2.display.Layer;
 import ini.trakem2.display.Polyline;
@@ -99,20 +100,13 @@ public class FixMontageLayerResult implements Serializable
         final float[][] cpts = profileMapC.get(template.getId());
         final float[][] rpts = profileMapR.get(template.getId());
 
-        if (lpts != null)
+        if (cpts != null)
         {
-            final double[][][] bez = new double[3][2][];
+            final double[][][] bez = new double[3][2][cpts.length];
             final Profile profile;
             final long profileId = layer.getProject().getLoader().getNextId();
 
-            bez[0][0] = new double[lpts.length];
-            bez[1][0] = new double[rpts.length];
-            bez[2][0] = new double[cpts.length];
-            bez[0][1] = new double[lpts.length];
-            bez[1][1] = new double[rpts.length];
-            bez[2][1] = new double[cpts.length];
-
-            for (int i = 0; i < lpts.length; ++i)
+            for (int i = 0; i < cpts.length; ++i)
             {
                 bez[0][0][i] = lpts[i][0];
                 bez[1][0][i] = cpts[i][0];
@@ -129,6 +123,9 @@ public class FixMontageLayerResult implements Serializable
                     new AffineTransform());
 
             layer.add(profile);
+
+            profile.updateInDatabase("points");
+            profile.repaint(false);
 
             return true;
         }
