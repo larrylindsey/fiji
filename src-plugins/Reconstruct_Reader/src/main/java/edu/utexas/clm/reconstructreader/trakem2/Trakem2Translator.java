@@ -218,7 +218,7 @@ public class Trakem2Translator implements Runnable
             for (final ProfileData profileData : profileMap.get(rootLayerSet.getLayer(l).getId()))
             {
                 final ArrayList<float[]> path = getPathFromProfile(profileData.profile);
-                final String name;
+                String name;
                 final Thing thing = project.findProjectThing(profileData.profile);
 
                 if (thing == null)
@@ -229,6 +229,11 @@ public class Trakem2Translator implements Runnable
                 {
                     name = thing.getParent() == null ? thing.getTitle() :
                             thing.getParent().getTitle();
+                    // Warning: Kluge ahead
+                    if (name.equals("profile_list"))
+                    {
+                        name = profileData.profile.getTitle();
+                    }
                 }
 
                 writePathXML(writer, profileData.profile, name, path, false, h);
