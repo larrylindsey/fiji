@@ -32,12 +32,10 @@ public class Trakem2Translator implements Runnable
     private class ProfileData
     {
         public final Profile profile;
-        public final ProjectThing parent;
-        
-        public ProfileData(Profile profileIn, ProjectThing parentIn)                
+
+        public ProfileData(Profile profileIn)
         {
             profile = profileIn;
-            parent = parentIn;
         }
     }
     
@@ -127,28 +125,25 @@ public class Trakem2Translator implements Runnable
     {
         final HashMap<Long, ArrayList<ProfileData>> map = new HashMap<Long, ArrayList<ProfileData>>();
         
-        for (Layer layer : rootLayerSet.getLayers())
+        for (final Layer layer : rootLayerSet.getLayers())
         {
             map.put(layer.getId(), new ArrayList<ProfileData>());
         }
-        
-        for (final ProjectThing rt : reconstructThings)
+
+        for (final Layer layer : rootLayerSet.getLayers())
         {
-            List<ProjectThing> profileLists = rt.findChildren("profile_list", null, false);
 
-            for (ProjectThing pList : profileLists)
+            for (final Displayable d : layer.getDisplayables())
             {
-                List<Profile> profiles = pList.findChildrenOfType(Profile.class);
-
-                for (Profile p : profiles)
+                if (d instanceof Profile)
                 {
-                    long id = p.getLayer().getId(); 
-                    map.get(id).add(new ProfileData(p, pList));
-
+                    final Profile p = (Profile)d;
+                    long id = p.getLayer().getId();
+                    map.get(id).add(new ProfileData(p));
                 }
+
             }
         }
-        
         return map;
     }
     
@@ -202,7 +197,8 @@ public class Trakem2Translator implements Runnable
                 final Area area = al.getArea(rootLayerSet.getLayer(l));
                 if (area != null && !area.isEmpty())
                 {
-                    final Thing thing = project.findProjectThing(al).getParent();
+                    final String name = project.findProjectThing(al) == null ? al.getTitle() :
+                        project.findProjectThing(al).getParent().getTitle();
                     final PathIterator pathIter = area.getPathIterator(al.getAffineTransform());
                     final float[] rgb = new float[3];                    
 
@@ -212,17 +208,35 @@ public class Trakem2Translator implements Runnable
                     {                        
                         ArrayList<float[]> path = getNextPath(pathIter);
                         
-                        writePathXML(writer, al, thing, path, true, h);
+                        writePathXML(writer, al, name, path, true, h);
                     }
                 }
             }
 
             //Push all of the open Contours
             
-            for (ProfileData profileData : profileMap.get(rootLayerSet.getLayer(l).getId()))
+            for (final ProfileData profileData : profileMap.get(rootLayerSet.getLayer(l).getId()))
             {
-                ArrayList<float[]> path = getPathFromProfile(profileData.profile);
-                writePathXML(writer, profileData.profile, profileData.parent.getParent(), path, false, h);
+                final ArrayList<float[]> path = getPathFromProfile(profileData.profile);
+                String name;
+                final Thing thing = project.findProjectThing(profileData.profile);
+
+                if (thing == null)
+                {
+                    name = profileData.profile.getTitle();
+                }
+                else
+                {
+                    name = thing.getParent() == null ? thing.getTitle() :
+                            thing.getParent().getTitle();
+                    // Warning: Kluge ahead
+                    if (name.equals("profile_list"))
+                    {
+                        name = profileData.profile.getTitle();
+                    }
+                }
+
+                writePathXML(writer, profileData.profile, name, path, false, h);
             }
             
             
@@ -235,11 +249,10 @@ public class Trakem2Translator implements Runnable
         
     }
     
-    private void writePathXML(final Writer writer, final Displayable d, final Thing t,
+    private void writePathXML(final Writer writer, final Displayable d, final String name,
                               final List<float[]> path, final boolean isClosed, final float h)
             throws IOException
     {
-        String alname = t.getTitle();
         float[] rgb = new float[3];
         boolean isVisible = d.isVisible();
         
@@ -248,7 +261,7 @@ public class Trakem2Translator implements Runnable
         if (!path.isEmpty())
         {
             String tab = "";
-            writer.write("<Contour name=\"" + alname + "\" hidden=\"" + !isVisible);
+            writer.write("<Contour name=\"" + name + "\" hidden=\"" + !isVisible);
             writer.write("\" closed=\"" + isClosed + "\" simplified=\"true\" ");
             writer.write("border=\"" + rgb[0] + " " + rgb[1] + " " + rgb[2] + "\" ");
             writer.write("fill=\"" + rgb[0] + " " + rgb[1] + " " + rgb[2] + "\" ");
