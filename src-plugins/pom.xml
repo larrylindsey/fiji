@@ -26,7 +26,6 @@
 		<module>AnalyzeSkeleton_</module>
 		<module>Analyze_Reader_Writer</module>
 		<module>Anisotropic_Diffusion_2D</module>
-		<module>Archipelago_Plugins</module>
 		<module>Arrow_</module>
 		<module>Auto_Threshold</module>
 		<module>BalloonSegmentation_</module>
@@ -46,7 +45,6 @@
 		<module>Differentials_</module>
 		<module>Directionality_</module>
 		<module>Extended_Depth_Field</module>
-		<module>FS_Align_TrakEM2</module>
 		<module>FeatureJ_</module>
 		<module>Feature_Detection</module>
 		<module>Fiji_Archipelago</module>
@@ -81,7 +79,6 @@
 		<module>QuickPALM_</module>
 		<module>RATS_</module>
 		<module>RandomJ_</module>
-		<module>Reconstruct_Reader</module>
 		<module>Refresh_Javas</module>
 		<module>SPIM_Opener</module>
 		<module>SPIM_Registration</module>
