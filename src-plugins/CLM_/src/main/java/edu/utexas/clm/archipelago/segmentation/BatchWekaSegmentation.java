@@ -1,6 +1,6 @@
-package edu.utexas.archipelago.segmentation;
+package edu.utexas.clm.archipelago.segmentation;
 
-import edu.utexas.archipelago.image.ImageBlockDeblock;
+import edu.utexas.clm.archipelago.image.ImageBlockDeblock;
 import edu.utexas.clm.archipelago.Cluster;
 import edu.utexas.clm.archipelago.FijiArchipelago;
 import edu.utexas.clm.archipelago.data.Duplex;

@@ -1,4 +1,4 @@
-package fsalign;
+package edu.utexas.clm.fsalign;
 
 import javax.swing.filechooser.FileNameExtensionFilter;
 import java.io.File;

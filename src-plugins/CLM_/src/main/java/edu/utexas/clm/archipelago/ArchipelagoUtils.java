@@ -1,4 +1,4 @@
-package edu.utexas.archipelago;
+package edu.utexas.clm.archipelago;
 
 import edu.utexas.clm.archipelago.FijiArchipelago;
 import edu.utexas.clm.archipelago.data.FileChunk;

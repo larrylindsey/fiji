@@ -1,4 +1,4 @@
-package fsalign;
+package edu.utexas.clm.fsalign;
 
 import java.util.EventListener;
 

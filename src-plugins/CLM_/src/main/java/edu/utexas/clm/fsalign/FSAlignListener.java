@@ -1,7 +1,11 @@
-package fsalign;
+package edu.utexas.clm.fsalign;
 
 import ini.trakem2.Project;
-import ini.trakem2.display.*;
+import ini.trakem2.display.Display;
+import ini.trakem2.display.Displayable;
+import ini.trakem2.display.Layer;
+import ini.trakem2.display.LayerSet;
+import ini.trakem2.display.Patch;
 import ini.trakem2.utils.Filter;
 import mpicbg.trakem2.align.AlignLayersTask;
 
@@ -24,7 +28,7 @@ public class FSAlignListener extends ImageListener
     
     private final Project trakemProject;
     private final ArrayList<String> existingImageFiles;
-    protected final Filter<Patch> patchFilter;           
+    protected final Filter<Patch> patchFilter;
     private final double thickness;
     private double nextZ;
     private String path;

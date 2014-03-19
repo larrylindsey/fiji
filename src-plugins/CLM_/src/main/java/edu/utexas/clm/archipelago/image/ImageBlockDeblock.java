@@ -1,4 +1,4 @@
-package edu.utexas.archipelago.image;
+package edu.utexas.clm.archipelago.image;
 
 
 import edu.utexas.clm.archipelago.FijiArchipelago;

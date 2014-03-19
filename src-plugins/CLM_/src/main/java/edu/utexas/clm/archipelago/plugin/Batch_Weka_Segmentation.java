@@ -1,7 +1,7 @@
-package edu.utexas.archipelago.plugin;
+package edu.utexas.clm.archipelago.plugin;
 
-import edu.utexas.archipelago.ArchipelagoUtils;
-import edu.utexas.archipelago.segmentation.BatchWekaSegmentation;
+import edu.utexas.clm.archipelago.ArchipelagoUtils;
+import edu.utexas.clm.archipelago.segmentation.BatchWekaSegmentation;
 import edu.utexas.clm.archipelago.Cluster;
 import edu.utexas.clm.archipelago.FijiArchipelago;
 import edu.utexas.clm.archipelago.ui.ClusterXML;
