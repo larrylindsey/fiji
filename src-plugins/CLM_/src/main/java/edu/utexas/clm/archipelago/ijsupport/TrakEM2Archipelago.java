@@ -24,6 +24,7 @@ import edu.utexas.clm.archipelago.ijsupport.bottle.LayerBottler;
 import edu.utexas.clm.archipelago.ijsupport.bottle.PatchBottler;
 import edu.utexas.clm.archipelago.ijsupport.bottle.PointBottler;
 import edu.utexas.clm.archipelago.ijsupport.bottle.SIFTParamBottler;
+import edu.utexas.clm.archipelago.ijsupport.bottle.TileBottler;
 import edu.utexas.clm.archipelago.listen.ClusterStateListener;
 import edu.utexas.clm.archipelago.network.client.ArchipelagoClient;
 import ini.trakem2.ControlWindow;
@@ -112,6 +113,8 @@ public class TrakEM2Archipelago implements TPlugIn
     
     public boolean setup(Object... params)
     {
+        System.out.println("TrakEM2 Archipelago setup called");
+
         Cluster cluster;        
         if (Cluster.initializedCluster())
         {
@@ -133,15 +136,19 @@ public class TrakEM2Archipelago implements TPlugIn
             cluster = Cluster.getCluster();
         }
 
+        System.out.println("AAARRRRRRRRGGHGHGHHG!!");
+
         cluster.addBottler(new PointBottler());
         cluster.addBottler(new LayerBottler());
         cluster.addBottler(new PatchBottler());
         cluster.addBottler(new SIFTParamBottler());
+        cluster.addBottler(new TileBottler());
 
         cluster.addStateListener(new ProviderListener());
         ExecutorProvider.setProvider(new ClusterProvider(cluster));
 
         FijiArchipelago.log("TrakEM2 now using the Cluster");
+        FijiArchipelago.log("Cluster has " + cluster.getBottlers().size());
         
         return true;
     }
