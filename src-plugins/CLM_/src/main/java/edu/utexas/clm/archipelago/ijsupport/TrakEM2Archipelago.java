@@ -113,9 +113,7 @@ public class TrakEM2Archipelago implements TPlugIn
     
     public boolean setup(Object... params)
     {
-        System.out.println("TrakEM2 Archipelago setup called");
-
-        Cluster cluster;        
+        Cluster cluster;
         if (Cluster.initializedCluster())
         {
             cluster = Cluster.getCluster();
@@ -136,8 +134,6 @@ public class TrakEM2Archipelago implements TPlugIn
             cluster = Cluster.getCluster();
         }
 
-        System.out.println("AAARRRRRRRRGGHGHGHHG!!");
-
         cluster.addBottler(new PointBottler());
         cluster.addBottler(new LayerBottler());
         cluster.addBottler(new PatchBottler());
@@ -148,8 +144,7 @@ public class TrakEM2Archipelago implements TPlugIn
         ExecutorProvider.setProvider(new ClusterProvider(cluster));
 
         FijiArchipelago.log("TrakEM2 now using the Cluster");
-        FijiArchipelago.log("Cluster has " + cluster.getBottlers().size());
-        
+
         return true;
     }
 

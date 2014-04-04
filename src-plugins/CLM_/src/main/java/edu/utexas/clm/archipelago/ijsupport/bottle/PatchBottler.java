@@ -22,6 +22,6 @@ public class PatchBottler implements Bottler<Patch>
 
     public boolean transfer()
     {
-        return false;
+        return true;
     }
 }

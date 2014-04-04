@@ -16,11 +16,16 @@ import mpicbg.trakem2.align.RigidTile2D;
 import mpicbg.trakem2.align.SimilarityTile2D;
 import mpicbg.trakem2.align.TranslationTile2D;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.Serializable;
+
 /**
  *
  */
-public class TileBottler implements Bottler<AbstractAffineTile2D<?>>
+public class TileBottler implements Bottler<AbstractAffineTile2D<?>>, Serializable
 {
+    private boolean isOrigin = true;
 
     public boolean accepts(Object o)
     {
@@ -31,23 +36,23 @@ public class TileBottler implements Bottler<AbstractAffineTile2D<?>>
     {
         if (o instanceof AffineTile2D)
         {
-            return new AffineTile2DBottle((AffineTile2D)o);
+            return new AffineTile2DBottle((AffineTile2D)o, isOrigin);
         }
         else if (o instanceof RigidTile2D)
         {
-            return new RigidTile2DBottle((RigidTile2D)o);
+            return new RigidTile2DBottle((RigidTile2D)o, isOrigin);
         }
         else if (o instanceof SimilarityTile2D)
         {
-            return new SimilarityTile2DBottle((SimilarityTile2D)o);
+            return new SimilarityTile2DBottle((SimilarityTile2D)o, isOrigin);
         }
         else if (o instanceof TranslationTile2D)
         {
-            return new TranslationTile2DBottle((TranslationTile2D)o);
+            return new TranslationTile2DBottle((TranslationTile2D)o, isOrigin);
         }
         else if (o instanceof GenericAffineTile2D)
         {
-            return new GenericAffineTile2DBottle((GenericAffineTile2D)o);
+            return new GenericAffineTile2DBottle((GenericAffineTile2D)o, isOrigin);
         }
         else
         {
@@ -58,6 +63,14 @@ public class TileBottler implements Bottler<AbstractAffineTile2D<?>>
 
     public boolean transfer()
     {
-        return false;
+        return true;
+    }
+
+    private void readObject(ObjectInputStream ois)
+            throws ClassNotFoundException, IOException
+    {
+        ois.defaultReadObject();
+
+        isOrigin = false;
     }
 }
