@@ -55,7 +55,19 @@ public class AffineTile2DBottle extends TileBottle
     {
         if (fromOrigin)
         {
-            return new IDAffineTile2D(model, patch, id);
+            synchronized( sync )
+            {
+                if (hasTile(id))
+                {
+                    return getTile(id);
+                }
+                else
+                {
+                    AbstractAffineTile2D<?> tile = new IDAffineTile2D(model, patch, id);
+                    placeTile(id, tile);
+                    return tile;
+                }
+            }
         }
         else
         {

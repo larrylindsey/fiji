@@ -55,7 +55,19 @@ public class SimilarityTile2DBottle extends TileBottle
     {
         if (fromOrigin)
         {
-            return new IDSimilarityTile2D(model, patch, id);
+            synchronized( sync )
+            {
+                if (hasTile(id))
+                {
+                    return getTile(id);
+                }
+                else
+                {
+                    AbstractAffineTile2D<?> tile = new IDSimilarityTile2D(model, patch, id);
+                    placeTile(id, tile);
+                    return tile;
+                }
+            }
         }
         else
         {

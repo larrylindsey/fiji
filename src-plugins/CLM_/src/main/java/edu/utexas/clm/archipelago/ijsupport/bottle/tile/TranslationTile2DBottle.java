@@ -55,7 +55,19 @@ public class TranslationTile2DBottle extends TileBottle
     {
         if (fromOrigin)
         {
-            return new IDTranslationTile2D(model, patch, id);
+            synchronized( sync )
+            {
+                if (hasTile(id))
+                {
+                    return getTile(id);
+                }
+                else
+                {
+                    AbstractAffineTile2D<?> tile = new IDTranslationTile2D(model, patch, id);
+                    placeTile(id, tile);
+                    return tile;
+                }
+            }
         }
         else
         {

@@ -14,9 +14,11 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public abstract class TileBottle implements Bottle<AbstractAffineTile2D<?>>
 {
-    private static final AtomicLong nextId = new AtomicLong(0);
+    private static final AtomicLong nextId = new AtomicLong(1);
     private static final Map<Long, AbstractAffineTile2D<?>> idTileMap =
             Collections.synchronizedMap(new HashMap<Long, AbstractAffineTile2D<?>>());
+
+    protected static final Object sync = idTileMap;
 
     protected long getNextId()
     {
@@ -40,6 +42,15 @@ public abstract class TileBottle implements Bottle<AbstractAffineTile2D<?>>
 
     protected AbstractAffineTile2D<?> getTile(final long id)
     {
+        if (!idTileMap.containsKey(id))
+        {
+            System.out.println("TileBottle: Couldn't find tile " + id);
+        }
         return idTileMap.get(id);
+    }
+
+    protected boolean hasTile(final long id)
+    {
+        return idTileMap.containsKey(id);
     }
 }

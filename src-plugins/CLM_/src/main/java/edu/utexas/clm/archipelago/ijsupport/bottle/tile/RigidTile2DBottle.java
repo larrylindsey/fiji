@@ -56,7 +56,19 @@ public class RigidTile2DBottle extends TileBottle
     {
         if (fromOrigin)
         {
-            return new IDRigidTile2D(model, patch, id);
+            synchronized( sync )
+            {
+                if (hasTile(id))
+                {
+                    return getTile(id);
+                }
+                else
+                {
+                    AbstractAffineTile2D<?> tile = new IDRigidTile2D(model, patch, id);
+                    placeTile(id, tile);
+                    return tile;
+                }
+            }
         }
         else
         {
