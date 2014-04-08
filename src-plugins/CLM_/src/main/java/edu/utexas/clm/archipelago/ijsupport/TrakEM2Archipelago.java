@@ -102,12 +102,17 @@ public class TrakEM2Archipelago implements TPlugIn
             cluster = c;
         }
         
-        public ExecutorService getService(int nThreads) {
+        public ExecutorService getService(final String id, int nThreads) {
             return cluster.getService(nThreads);
         }
 
-        public ExecutorService getService(float fractionThreads) {
+        public ExecutorService getService(final String id, float fractionThreads) {
             return cluster.getService(fractionThreads);
+        }
+
+        public boolean isLocal()
+        {
+            return false;
         }
     }
     
